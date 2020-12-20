@@ -22,7 +22,7 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
 CHUNK = 8192
-RECORD_SECONDS = 10
+RECORD_SECONDS = 1
 audio = pyaudio.PyAudio()
 WAVE_OUTPUT_FILENAME = "file.wav"
 DEFAULT_WINDOW_SIZE = 4096  #The number of data points used in each block for the FFT
@@ -109,7 +109,6 @@ def generate_hashes(peaks, fan_value: int = DEFAULT_FAN_VALUE):
                 t1 = peaks[i][idx_time]
                 t2 = peaks[i + j][idx_time]
                 t_delta = t2 - t1
-                #print("revisar si t_delta se trata de ms: ",t_delta)
                 if MIN_HASH_TIME_DELTA <= t_delta <= MAX_HASH_TIME_DELTA:
                     h = hashlib.sha1(f"{str(freq1)}|{str(freq2)}|{str(t_delta)}".encode('utf-8'))
                     hashes.append((h.hexdigest()[0:FINGERPRINT_REDUCTION], t1))
@@ -259,7 +258,7 @@ def return_matches(hashes, batch_size: int = 1000):
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
             query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
-
+            print(query)
             cur.execute(query, values[index: index + batch_size])
 
             for hsh, sid, offset in cur:
@@ -308,10 +307,11 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
         sorted_matches = sorted(matches, key=lambda m: (m[0], m[1]))
         #print("sorted_matches: ",sorted_matches)
         counts = [(*key, len(list(group))) for key, group in groupby(sorted_matches, key=lambda m: (m[0], m[1]))]
+        print(counts)
         songs_matches = sorted(
             [max(list(group), key=lambda g: g[2]) for key, group in groupby(counts, key=lambda count: count[0])],
             key=lambda count: count[2], reverse=True
-        )
+        ) #reverse=True = From higest to lowest
         #print("songs_matches: ",songs_matches)
         songs_result = []
         for song_id, offset, _ in songs_matches[0:topn]:  # consider topn elements in the result

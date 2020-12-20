@@ -33,7 +33,7 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 15
+RECORD_SECONDS = 5
 # Number of results being returned for file recognition
 TOPN = 5
 FORMAT = pyaudio.paInt16
@@ -375,10 +375,10 @@ def get_database(database_type: str = "mysql"):
 def play_thread():
     work = True
     while work:
-        tensec_from_song = q.get()
-        if tensec_from_song is None:
+        fragment_from_song = q.get()
+        if fragment_from_song is None:
             break
-        play(tensec_from_song)
+        play(fragment_from_song)
         work = False
 
 def find_files(path: str, extensions):
@@ -429,7 +429,6 @@ def get_noise_from_sound(signal,noise,SNR):
     return noise
 
 def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_songs):
-    #print("generate_csv_results!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
     #print(songs_to_recognize)
     #print(recognized_song_names)
     #print(iteration)
@@ -495,22 +494,6 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_
 
 
 #MAIN
-"""
-songs_to_recognize = ["0001","0002","0003"]
-recognized_song_names = ["0001", "0004","0003"]
-#y_true = pd.Series(songs_to_recognize, name="Actual")
-#y_pred = pd.Series(recognized_song_names, name="Predicted")
-#df_confusion = pd.crosstab(y_true, y_pred)
-y_true = pd.Series(songs_to_recognize)
-y_pred = pd.Series(recognized_song_names)
-df_confusion = pd.crosstab(y_true, y_true)
-for i in range(len(y_true)):
-    if y_true[i] != y_pred[i]:
-        df_confusion.at[y_true[i],y_true[i]] = 0
-        df_confusion.at[y_true[i],y_pred[i]] = 1
-df_confusion.to_csv('CM.csv')
-sys.exit()
-"""
 songs_to_recognize = find_files("songs",["." + "mp3"])
 #songs_to_recognize = ["songs/000/000002.mp3"]
 #songs_to_recognize = songs_to_recognize[0:5]
@@ -530,9 +513,9 @@ print("fourthpart: ",fourthpart)
 print("medium: ",medium)
 print("three_fourths: ",three_fourths)
 for song_i, song_name in enumerate(songs_to_recognize):
-    #adding noise
-    signal, sr = librosa.load(song_name)
+    print("Now loading: ",song_name)
     if add_noise:
+        signal, sr = librosa.load(song_name)
         #additive gaussian noise
         #noise=get_white_noise(signal,SNR=10)
         signal=np.interp(signal, (signal.min(), signal.max()), (-1, 1))
@@ -550,17 +533,16 @@ for song_i, song_name in enumerate(songs_to_recognize):
         song_to_play = AudioSegment.from_mp3(song_name)
     r_seconds = RECORD_SECONDS * 1000
     duration_seconds = song_to_play.duration_seconds
-    #random start from 5s (0) to duration of song - RECORD_SECONDS
+    #random start from 0 to duration of song - RECORD_SECONDS
     song_start_time = randrange(0,int(duration_seconds)-RECORD_SECONDS)
     print("start_time: ",song_start_time)
     start_time = song_start_time * 1000
-    tensec_from_song = song_to_play[start_time:start_time+r_seconds]
-    print("Now playing: ",song_name)
+    fragment_from_song = song_to_play[start_time:start_time+r_seconds]
     print("Song {} of {}".format(song_i,len_songs))
     #start playing song
     t = threading.Thread(target=play_thread)
     t.start()
-    q.put(tensec_from_song)
+    q.put(fragment_from_song)
     # start Recording
     stream = audio.open(format=FORMAT, channels=CHANNELS,
                     rate=RATE, input=True
