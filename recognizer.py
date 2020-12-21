@@ -18,11 +18,11 @@ from operator import itemgetter
 from itertools import groupby
 import importlib
 
+RECORD_SECONDS = 1
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
 CHUNK = 8192
-RECORD_SECONDS = 1
 audio = pyaudio.PyAudio()
 WAVE_OUTPUT_FILENAME = "file.wav"
 DEFAULT_WINDOW_SIZE = 4096  #The number of data points used in each block for the FFT
@@ -258,7 +258,7 @@ def return_matches(hashes, batch_size: int = 1000):
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
             query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
-            print(query)
+            #print(query)
             cur.execute(query, values[index: index + batch_size])
 
             for hsh, sid, offset in cur:
@@ -307,7 +307,7 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
         sorted_matches = sorted(matches, key=lambda m: (m[0], m[1]))
         #print("sorted_matches: ",sorted_matches)
         counts = [(*key, len(list(group))) for key, group in groupby(sorted_matches, key=lambda m: (m[0], m[1]))]
-        print(counts)
+        #print(counts)
         songs_matches = sorted(
             [max(list(group), key=lambda g: g[2]) for key, group in groupby(counts, key=lambda count: count[0])],
             key=lambda count: count[2], reverse=True
@@ -385,7 +385,7 @@ for channel in data_channels:
     fingerprint_times.append(fingerprint_time)
     hashes |= set(fingerprints) #union
 #print("fingerprint_times: ",fingerprint_times)
-print("hashes: ",hashes)
+#print("hashes: ",hashes)
 db_cls = get_database(config.get("database_type", "mysql").lower())
 db = db_cls(**config.get("database", {}))
 matches, dedup_hashes, query_time = find_matches(hashes)

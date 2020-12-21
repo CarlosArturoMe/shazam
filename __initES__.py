@@ -13,23 +13,22 @@ from recognizer import fingerprint
 # DATABASE CLASS INSTANCES:
 DATABASES = {
     'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
+    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase"),
+    'elastic': ("elastic_database","ElasticDatabase")
 }
 
 config = {
     "database": {
         "host": "127.0.0.1",
-        "user": "root",
-        "password": "12345678",
-        "database": "music_recognition"
+        "port": "9200"
     },
-    "database_type": "mysql"
+    "database_type": "elastic"
 }
 
 #FIELD_FILE_SHA1 = 'file_sha1'
 FIELD_FILE_SHA1 = 2 #result is tuple, this field index is 2
 
-#self.config = config
+
 # initialize db
 def get_database(database_type: str = "mysql"):
     """
@@ -178,14 +177,14 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
     :param nprocesses: amount of processes to fingerprint the files within the directory.
     """
     # Try to use the maximum amount of processes if not given.
-    try:
-        nprocesses = nprocesses or multiprocessing.cpu_count()
-    except NotImplementedError:
-        nprocesses = 1
-    else:
-        nprocesses = 1 if nprocesses <= 0 else nprocesses
+    #try:
+    #    nprocesses = nprocesses or multiprocessing.cpu_count()
+    #except NotImplementedError:
+    #    nprocesses = 1
+    #else:
+    #    nprocesses = 1 if nprocesses <= 0 else nprocesses
     #print("nprocesses: ",nprocesses)
-    pool = multiprocessing.Pool(nprocesses)
+    #pool = multiprocessing.Pool(nprocesses)
 
     filenames_to_fingerprint = []
     for filename, _ in find_files(path, extensions):
@@ -237,41 +236,34 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
     for obj in worker_input:
         song_name, hashes, file_hash = _fingerprint_worker(obj)
         print("song_name after _fingerprint_worker: ",song_name)
-        #print("hashes: ",hashes)
+        #print("hashes example: ",type(hashes))
         #print("file_hash: ",file_hash)
         sid = db.insert_song(song_name, file_hash, len(hashes))
-        #print("sid",sid)
+        print("sid",sid)
         db.insert_hashes(sid, hashes)
+        print("finish insert hashes!")
         db.set_song_fingerprinted(sid)
-        #__load_fingerprinted_audio_hashes()
-        songs = db.get_songs()
-        songhashes_set = set()  # to know which ones we've computed before, EXTRA CODA
-        for song in songs:
-            #print("song: ",song)
-            song_hash = song[FIELD_FILE_SHA1]
-            songhashes_set.add(song_hash)
-    
+        songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
 
-db_cls = get_database(config.get("database_type", "mysql").lower())
+
+def load_fingerprinted_audio_hashes(songhashes_set):
+    songs = db.get_songs()
+    for song in songs:
+        song_hash = song[FIELD_FILE_SHA1]
+        songhashes_set.add(song_hash)
+    return songhashes_set
+
+db_cls = get_database(config.get("database_type", "elastic").lower())
 db = db_cls(**config.get("database", {}))
-#db is mysql instance
-with db.cursor() as cur:
-    cur.execute(db.CREATE_SONGS_TABLE)
-    cur.execute(db.CREATE_FINGERPRINTS_TABLE)
-    cur.execute(db.DELETE_UNFINGERPRINTED)
+db.create_songs_index()
+db.create_fingerprints_index()
+db.delete_unfingerprinted()
 
 # if we should limit seconds fingerprinted,
 # None|-1 means use entire track
 limit = config.get("fingerprint_limit", None)
 if limit == -1:  # for JSON compatibility
     limit = None
-#__load_fingerprinted_audio_hashes()
-#code below is the implementation of previous method
-songs = db.get_songs()
-songhashes_set = set()  # to know which ones we've computed before
-for song in songs:
-    print("song fingerprinted: ",song)
-    song_hash = song[FIELD_FILE_SHA1]
-    songhashes_set.add(song_hash)
-#print("songhashes_set: ",songhashes_set)
-fingerprint_directory("songs", ["." + "mp3"], 4,songhashes_set)
+# to know which ones we've computed before
+songhashes_set = load_fingerprinted_audio_hashes(set())
+fingerprint_directory("songsES", ["." + "mp3"], 4,songhashes_set)
