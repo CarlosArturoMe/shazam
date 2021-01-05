@@ -4,19 +4,18 @@ import binascii
 import codecs
 import uuid
 
-# TABLE SONGS
+# SONGS INDEX
 SONGS_INDEXNAME = "songs"
 # SONGS FIELDS
-FIELD_SONG_ID = 'song_id'
 FIELD_SONGNAME = 'song_name'
 FIELD_FINGERPRINTED = "fingerprinted"
 FIELD_FILE_SHA1 = 'file_sha1'
 FIELD_TOTAL_HASHES = 'total_hashes'
 
-# TABLE FINGERPRINTS
+# FINGERPRINTS INDEX
 FINGERPRINTS_INDEXNAME = "fingerprints"
-
 # FINGERPRINTS FIELDS
+FIELD_SONG_ID = 'song_id'
 FIELD_HASH = 'hash'
 FIELD_OFFSET = 'offset'
 
@@ -31,7 +30,7 @@ class ElasticDatabase():
         conn = Elasticsearch(**options)
         # Ping the connection before using it from the cache.
         if conn.ping():
-            print('Connection succesful')
+            print('Connection succesful!!')
         else:
             print('Connection unsuccesful')
         self._options = options
@@ -144,7 +143,7 @@ class ElasticDatabase():
             FIELD_FINGERPRINTED:True,
             "query": {
                 "match": {
-                FIELD_SONG_ID: song_id
+                "_id": song_id
                 }
             }     
         }
@@ -154,14 +153,16 @@ class ElasticDatabase():
     def gen_dicts(self,values):
         #print("Values received: ",values)
         for val in values:
-            #print("Val of the batch: ",val)
-            #binary_string = binascii.unhexlify(val[1])
-            b64 = codecs.encode(codecs.decode(val[1], 'hex'), 'base64').decode().replace("\n", "")
+            print("Val of the batch: ",val)
+            print("Typeof",type(val[1]))
+            binary_string = str(binascii.unhexlify(val[1]))
+            #b64 = codecs.encode(codecs.decode(val[1], 'hex'), 'base64').decode().replace("\n", "")
+            #b64 = bytearray.fromhex(val[1]).decode()
             #print(b64)
             yield {
                 "_index": FINGERPRINTS_INDEXNAME,
                 FIELD_SONG_ID: val[0],
-                FIELD_HASH: b64,
+                FIELD_HASH: val[1],
                 FIELD_OFFSET: val[2]
             }
 
@@ -179,6 +180,22 @@ class ElasticDatabase():
         for index in range(0, len(hashes), batch_size):
             helpers.bulk(self.cursor, self.gen_dicts(values[index: index + batch_size]))
 
+    def find_matches(self, hashes):
+        """
+        Find coincident hashes
+        :param hashes: A batch of hashes to find
+            - hash: Part of a sha1 hash, in hexadecimal format
+        """
+        queries = []
+        for hsh in hashes:
+            #dec = codecs.encode(codecs.decode(hsh, 'hex'), 'base64').decode().replace("\n", "")
+            #dec = str(binascii.unhexlify(hsh))
+            #change to term, match 
+            queries.append({'match':{FIELD_HASH:hsh}})
+        #res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={'query':{"bool":{"should":queries}}
+        res= helpers.scan(self.cursor,index=FINGERPRINTS_INDEXNAME,query={'query':{"bool":{"should":queries}},
+        "fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
+        return res
 
     def after_fork(self) -> None:
         # Clear the cursor cache, we don't want any stale connections from
@@ -195,20 +212,11 @@ class ElasticDatabase():
         :param total_hashes: amount of hashes to be inserted on fingerprint table.
         :return: the inserted id.
         """
-        #with self.cursor() as cur:
-        #    cur.execute(self.INSERT_SONG, (song_name, file_hash, total_hashes))
-        #    return cur.lastrowid
-        #INSERT_SONG = f"""
-        #INSERT INTO `{SONGS_INDEXNAME}` (`{FIELD_SONGNAME}`,`{FIELD_FILE_SHA1}`,`{FIELD_TOTAL_HASHES}`)
-        #VALUES (%s, UNHEX(%s), %s);
-        #11 """
         try:
             record = {FIELD_SONGNAME:song_name,FIELD_FILE_SHA1:file_hash,FIELD_TOTAL_HASHES:total_hashes}
-            #doc_type='salads' ?
             outcome = self.cursor.index(index=SONGS_INDEXNAME, body=record)
-            #print("outcome: ",outcome['_id'])
         except Exception as ex:
-            print('Error in indexing data')
+            print('Error indexing data')
             print(str(ex))
         return outcome['_id']
 
@@ -225,7 +233,7 @@ class ElasticDatabase():
 
         :return: a dictionary with the songs info.
         """
-        search_object = {'query': {'term': {FIELD_FINGERPRINTED: True}}, "fields": [FIELD_SONG_ID, FIELD_SONGNAME, FIELD_FILE_SHA1,
+        search_object = {'query': {'term': {FIELD_FINGERPRINTED: True}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1,
         FIELD_TOTAL_HASHES]}
         response = self.cursor.search(index = SONGS_INDEXNAME, body=search_object)
         #dct = {"song_name":response[0],"total_hashes":response[2],"file_sha1":response[1]}
@@ -240,11 +248,16 @@ class ElasticDatabase():
         :param song_id: song identifier.
         :return: a song by its identifier. Result must be a Dictionary.
         """
-        search_object = {'query': {'term': {FIELD_SONG_ID: song_id}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1, FIELD_TOTAL_HASHES]}
-        response = self.cursor.search(index=SONGS_INDEXNAME, body = search_object)
-        #dct = {"song_name":response[0],"total_hashes":response[2],"file_sha1":response[1]}
-        print(response)
-        return response
+        print("song_id: ",song_id)
+        search_object = {'query': {'term': {"_id": song_id}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1, FIELD_TOTAL_HASHES]}
+        response = self.cursor.search(index=SONGS_INDEXNAME, body=search_object)
+        #print("response: ",response)
+        #print("response I want: ",response["hits"]["hits"][0]['fields'])
+        dct = {"song_name":response["hits"]["hits"][0]['_source'][FIELD_SONGNAME],
+            "total_hashes":response["hits"]["hits"][0]['_source'][FIELD_TOTAL_HASHES],
+            "file_sha1":response["hits"]["hits"][0]['_source'][FIELD_FILE_SHA1]}
+        print("dct: ",dct)
+        return dct
 
 
 def cursor_factory(**factory_options):
