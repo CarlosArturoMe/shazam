@@ -119,12 +119,19 @@ def find_files(path: str, extensions):
 
 #MAIN
 songs_to_recognize = find_files("songs",["." + "mp3"])
+songs_to_delete = []
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
-    song_to_play = AudioSegment.from_mp3(song_name)
+    try:
+        song_to_play = AudioSegment.from_mp3(song_name)
+    except:
+        print("Cant play: ",song_name)
+        songs_to_delete.append(song_name)
     duration_seconds = song_to_play.duration_seconds
     r_seconds = RECORD_SECONDS * 1000
     #random start from 5s (0) to duration of song - RECORD_SECONDS
     if int(duration_seconds) - RECORD_SECONDS < 1:
         print("Not enough duration of song: ",duration_seconds) 
-        break
+        songs_to_delete.append(song_name)
+df = pd.DataFrame(songs_to_delete, columns=["songs_name"])
+>>> df.to_csv('songs_to_delete.csv', index=False)
