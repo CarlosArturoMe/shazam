@@ -8,7 +8,7 @@ from hashlib import sha1
 from pydub import AudioSegment
 from pydub.utils import audioop
 import numpy as np
-from recognizer import fingerprint
+from recognizerES import fingerprint
 
 # DATABASE CLASS INSTANCES:
 DATABASES = {

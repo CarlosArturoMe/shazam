@@ -493,97 +493,100 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_
     df3.to_csv('ASSK_'+csv_name)
 
 #MAIN
-add_noise = False
-SNR = 0
-songs_to_recognize = find_files("songsES",["." + "mp3"])
-#songs_to_recognize = ["songs/000/000002.mp3"]
-#songs_to_recognize = songs_to_recognize[0:5]
-#song = songs_to_recognize[0]
-recognized_song_names = []
-times = []
-final_results_arr = []
-db_cls = get_database(config.get("database_type", "mysql").lower())
-db = db_cls(**config.get("database", {}))
-len_songs = len(songs_to_recognize)
-fourthpart = math.floor(len_songs/4)
-medium = fourthpart * 2
-three_fourths = fourthpart * 3
-print("len_songs: ",len_songs)
-for song_i, song_name in enumerate(songs_to_recognize):
-    print("Now loading: ",song_name)
-    print("Song {} of {}".format(song_i,len_songs))
-    if add_noise:
-        signal, sr = librosa.load(song_name)
-        #additive gaussian noise
-        #noise=get_white_noise(signal,SNR=10)
-        signal=np.interp(signal, (signal.min(), signal.max()), (-1, 1))
-        noise_file='city-traffic-sounds/city-traffic-sounds.mp3'
-        noise, sr = librosa.load(noise_file)
-        #print(len(noise))
-        noise=np.interp(noise, (noise.min(), noise.max()), (-1, 1))
-        if(len(noise)>len(signal)):
-            noise=noise[0:len(signal)]
-        noise=get_noise_from_sound(signal,noise,SNR)
-        signal=signal+noise
-        sf.write("signal_with_noise.wav", signal, sr)
-        song_to_play = AudioSegment.from_wav("signal_with_noise.wav")
-    else:
-        song_to_play = AudioSegment.from_mp3(song_name)
-    r_seconds = RECORD_SECONDS * 1000
-    duration_seconds = song_to_play.duration_seconds
-    #random start from 0 to duration of song - RECORD_SECONDS
-    song_start_time = randrange(0,int(duration_seconds)-RECORD_SECONDS)
-    print("start_time: ",song_start_time)
-    start_time = song_start_time * 1000
-    fragment_from_song = song_to_play[start_time:start_time+r_seconds]
-    #start playing song
-    t = threading.Thread(target=play_thread)
-    t.start()
-    q.put(fragment_from_song)
-    # start Recording
-    stream = audio.open(format=FORMAT, channels=CHANNELS,
-                    rate=RATE, input=True
-                    ,frames_per_buffer=CHUNK)
-    print ("recording...")
-    data_channels = [[] for i in range(CHANNELS)]
-    frames = []
-    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-        data = stream.read(CHUNK,exception_on_overflow = False)
-        nums = np.fromstring(data, np.int16)
-        frames.append(data)
-        for c in range(CHANNELS):
-            data_channels[c].extend(nums[c::CHANNELS])
-    print("finished recording")
-    # stop Recording
-    stream.stop_stream()
-    stream.close()
-    #print(data_channels)
-    fingerprint_times = []
-    hashes = set()  # to remove possible duplicated fingerprints we built a set.
-    for channel in data_channels:
-        fingerprints, fingerprint_time = generate_fingerprints(channel, Fs=RATE)
-        fingerprint_times.append(fingerprint_time)
-        hashes |= set(fingerprints) #union
-    #print("fingerprint_times: ",fingerprint_times)
-    #print("hashes: ",hashes)
-    matches, dedup_hashes, query_time = find_matches(hashes)
-    t = time()
-    final_results = align_matches(matches, dedup_hashes, len(hashes))
-    align_time = time() - t
-    print("final_results: ",final_results)
-    print("fingerprint_times: ",np.sum(fingerprint_times)) #total time for fingerprinting all the segments
-    print("query_time: ",query_time)
-    print("align_time: ",align_time)
-    if final_results:
-        final_results_arr.append(str(final_results))
-        recognized_song_names.append(str(final_results[0]['song_name']))
-    else:
-        final_results_arr.append("No results")
-        recognized_song_names.append("No results")
-    fingerprint_times = np.sum(fingerprint_times)
-    total_time = fingerprint_times + query_time + align_time
-    times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
-    "align_time":align_time,"total_time":total_time})
-    if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
-        generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,len_songs)
-audio.terminate()
+testing_all = False
+if testing_all:
+    add_noise = False
+    SNR = 0
+    songs_to_recognize = find_files("songsES",["." + "mp3"])
+    #songs_to_recognize = ["songs/000/000002.mp3"]
+    #songs_to_recognize = songs_to_recognize[0:5]
+    #song = songs_to_recognize[0]
+    recognized_song_names = []
+    times = []
+    final_results_arr = []
+    db_cls = get_database(config.get("database_type", "mysql").lower())
+    db = db_cls(**config.get("database", {}))
+    len_songs = len(songs_to_recognize)
+    fourthpart = math.floor(len_songs/4)
+    medium = fourthpart * 2
+    three_fourths = fourthpart * 3
+    print("len_songs: ",len_songs)
+    for song_i, song_name in enumerate(songs_to_recognize):
+        print("Now loading: ",song_name)
+        print("Song {} of {}".format(song_i,len_songs))
+        if add_noise:
+            signal, sr = librosa.load(song_name)
+            #additive gaussian noise
+            #noise=get_white_noise(signal,SNR=10)
+            signal=np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+            noise_file='city-traffic-sounds/city-traffic-sounds.mp3'
+            noise, sr = librosa.load(noise_file)
+            #print(len(noise))
+            noise=np.interp(noise, (noise.min(), noise.max()), (-1, 1))
+            if(len(noise)>len(signal)):
+                noise=noise[0:len(signal)]
+            noise=get_noise_from_sound(signal,noise,SNR)
+            signal=signal+noise
+            sf.write("signal_with_noise.wav", signal, sr)
+            song_to_play = AudioSegment.from_wav("signal_with_noise.wav")
+        else:
+            song_to_play = AudioSegment.from_mp3(song_name)
+        r_seconds = RECORD_SECONDS * 1000
+        duration_seconds = song_to_play.duration_seconds
+        #random start from 0 to duration of song - RECORD_SECONDS
+        song_start_time = randrange(0,int(duration_seconds)-RECORD_SECONDS)
+        print("start_time: ",song_start_time)
+        start_time = song_start_time * 1000
+        fragment_from_song = song_to_play[start_time:start_time+r_seconds]
+        #start playing song
+        t = threading.Thread(target=play_thread)
+        t.start()
+        q.put(fragment_from_song)
+        # start Recording
+        stream = audio.open(format=FORMAT, channels=CHANNELS,
+                        rate=RATE, input=True
+                        ,frames_per_buffer=CHUNK)
+        print ("recording...")
+        data_channels = [[] for i in range(CHANNELS)]
+        frames = []
+        for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+            data = stream.read(CHUNK,exception_on_overflow = False)
+            nums = np.fromstring(data, np.int16)
+            frames.append(data)
+            for c in range(CHANNELS):
+                data_channels[c].extend(nums[c::CHANNELS])
+        print("finished recording")
+        # stop Recording
+        stream.stop_stream()
+        stream.close()
+        #print(data_channels)
+        fingerprint_times = []
+        hashes = set()  # to remove possible duplicated fingerprints we built a set.
+        for channel in data_channels:
+            fingerprints, fingerprint_time = generate_fingerprints(channel, Fs=RATE)
+            fingerprint_times.append(fingerprint_time)
+            hashes |= set(fingerprints) #union
+        #print("fingerprint_times: ",fingerprint_times)
+        #print("hashes: ",hashes)
+        matches, dedup_hashes, query_time = find_matches(hashes)
+        t = time()
+        final_results = align_matches(matches, dedup_hashes, len(hashes))
+        align_time = time() - t
+        print("final_results: ",final_results)
+        print("fingerprint_times: ",np.sum(fingerprint_times)) #total time for fingerprinting all the segments
+        print("query_time: ",query_time)
+        print("align_time: ",align_time)
+        if final_results:
+            final_results_arr.append(str(final_results))
+            recognized_song_names.append(str(final_results[0]['song_name']))
+        else:
+            final_results_arr.append("No results")
+            recognized_song_names.append("No results")
+        fingerprint_times = np.sum(fingerprint_times)
+        total_time = fingerprint_times + query_time + align_time
+        times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
+        "align_time":align_time,"total_time":total_time})
+        if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+            generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,len_songs)
+    audio.terminate()
+
