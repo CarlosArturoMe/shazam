@@ -3,6 +3,8 @@ from elasticsearch import Elasticsearch, ElasticsearchException,client,helpers
 import binascii
 import codecs
 import uuid
+import json
+import base64
 
 # SONGS INDEX
 SONGS_INDEXNAME = "songs"
@@ -24,9 +26,6 @@ class ElasticDatabase():
     type = "elastic"
 
     def __init__(self, **options):
-        #super().__init__()
-        #self.cursor = cursor_factory(**options)
-        #self.cursor = cursor_factory(**options,cursorclass=pymysql.cursors.DictCursor)
         conn = Elasticsearch(**options)
         # Ping the connection before using it from the cache.
         if conn.ping():
@@ -41,7 +40,8 @@ class ElasticDatabase():
         settings = {
             "settings": {
                 "number_of_shards": 1,
-                "number_of_replicas": 0
+                "number_of_replicas": 0,
+                "max_result_window" : 25000
             },
             "mappings": {
                 "properties": {
@@ -72,6 +72,7 @@ class ElasticDatabase():
             return created
 
     def create_fingerprints_index(self):
+        #ES doesn't seems to validate _size or binary
         created = False
         settings = {
             "settings": {
@@ -91,6 +92,8 @@ class ElasticDatabase():
                         "type": "integer"
                     }
                 }
+                #,
+                #"dynamic":"strict"
             }
         }
         try:
@@ -105,7 +108,6 @@ class ElasticDatabase():
             return created
 
     def delete_unfingerprinted(self):
-        #DELETE FROM `{SONGS_INDEXNAME}` WHERE `{FIELD_FINGERPRINTED}` = 0;
         body = {
             "query": {
                 "match": {
@@ -116,14 +118,10 @@ class ElasticDatabase():
         self.cursor.delete_by_query(SONGS_INDEXNAME,body)
 
     
-    def setup(self) -> None:
+    def setup(self):
         """
         Called on creation or shortly afterwards.
         """
-        #with self.cursor() as cur:
-        #    cur.execute(self.CREATE_SONGS_TABLE)
-        #    cur.execute(self.CREATE_FINGERPRINTS_TABLE)
-        #    cur.execute(self.DELETE_UNFINGERPRINTED)
         self.create_songs_index()
         self.create_fingerprints_index()
         self.delete_unfingerprinted()
@@ -134,31 +132,38 @@ class ElasticDatabase():
 
         :param song_id: song identifier.
         """
-        #with self.cursor() as cur:
-        #    cur.execute(self.UPDATE_SONG_FINGERPRINTED, (song_id,))
-        #UPDATE_SONG_FINGERPRINTED = f"""
-        #UPDATE `{SONGS_INDEXNAME}` SET `{FIELD_FINGERPRINTED}` = 1 WHERE `{FIELD_SONG_ID}` = %s;
-        #"""
+        print("song_id to set fingerprinted: ",song_id)
         record = {
-            FIELD_FINGERPRINTED:True,
-            "query": {
-                "match": {
-                "_id": song_id
-                }
-            }     
+            "doc": {
+            FIELD_FINGERPRINTED: True
+            },
+            "doc_as_upsert": True     
         }
-        #doc_type='salads' ?
-        self.cursor.index(index=SONGS_INDEXNAME, body=record)
+        self.cursor.update(index=SONGS_INDEXNAME, id=song_id, body=record)
 
     def gen_dicts(self,values):
         #print("Values received: ",values)
         for val in values:
-            print("Val of the batch: ",val)
-            print("Typeof",type(val[1]))
-            binary_string = str(binascii.unhexlify(val[1]))
+            #print("Val of the batch: ",val)
+            #print("Typeof",type(val[1]))
+            #binary_string = binascii.unhexlify(val[1])
             #b64 = codecs.encode(codecs.decode(val[1], 'hex'), 'base64').decode().replace("\n", "")
             #b64 = bytearray.fromhex(val[1]).decode()
-            #print(b64)
+            #print(binary_string)
+            #data = val[1]
+            #json_str = json.dumps( data )
+            #json_bytes = json_str.encode('utf-8')
+            #print ("json_bytes:", json_bytes)
+            #print ("type json_bytes:", type(json_bytes), "\n")
+            # TypeError: a bytes-like object is required, not 'dict'
+            #encoded_data = base64.b64encode( json_bytes )
+            #print ("encoded_data:", encoded_data)
+            #print ("type encoded_data:", type(encoded_data), "\n")
+            # cast the bytes object as a string
+            #encoded_str = str( encoded_data )
+            # remove b'' to avoid UnicodeDecodeError
+            #encoded_str = encoded_str[2:-1]
+            #print("encoded_str: ",encoded_str)
             yield {
                 "_index": FINGERPRINTS_INDEXNAME,
                 FIELD_SONG_ID: val[0],
@@ -185,22 +190,19 @@ class ElasticDatabase():
         Find coincident hashes
         :param hashes: A batch of hashes to find
             - hash: Part of a sha1 hash, in hexadecimal format
+        SCAN RETURNED 274 hits
         """
         queries = []
         for hsh in hashes:
             #dec = codecs.encode(codecs.decode(hsh, 'hex'), 'base64').decode().replace("\n", "")
             #dec = str(binascii.unhexlify(hsh))
-            #change to term, match 
+            #print("hsh: ",hsh)
+            #term, match 
             queries.append({'match':{FIELD_HASH:hsh}})
         #res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={'query':{"bool":{"should":queries}}
         res= helpers.scan(self.cursor,index=FINGERPRINTS_INDEXNAME,query={'query':{"bool":{"should":queries}},
         "fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
         return res
-
-    def after_fork(self) -> None:
-        # Clear the cursor cache, we don't want any stale connections from
-        # the previous process.
-        Cursor.clear_cache()
 
     def insert_song(self, song_name: str, file_hash: str, total_hashes: int) -> int:
         """
@@ -213,19 +215,13 @@ class ElasticDatabase():
         :return: the inserted id.
         """
         try:
-            record = {FIELD_SONGNAME:song_name,FIELD_FILE_SHA1:file_hash,FIELD_TOTAL_HASHES:total_hashes}
+            record = {FIELD_SONGNAME:song_name,FIELD_FILE_SHA1:file_hash,FIELD_TOTAL_HASHES:total_hashes,FIELD_FINGERPRINTED:False}
             outcome = self.cursor.index(index=SONGS_INDEXNAME, body=record)
         except Exception as ex:
             print('Error indexing data')
             print(str(ex))
         return outcome['_id']
 
-    def __getstate__(self):
-        return self._options,
-
-    def __setstate__(self, state):
-        self._options, = state
-        self.cursor = cursor_factory(**self._options)
 
     def get_songs(self):
         """
@@ -235,11 +231,14 @@ class ElasticDatabase():
         """
         search_object = {'query': {'term': {FIELD_FINGERPRINTED: True}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1,
         FIELD_TOTAL_HASHES]}
-        response = self.cursor.search(index = SONGS_INDEXNAME, body=search_object)
-        #dct = {"song_name":response[0],"total_hashes":response[2],"file_sha1":response[1]}
-        print("get_songs: ",response)
-        #return list(cur)
-        return response
+        response = self.cursor.search(index = SONGS_INDEXNAME, body=search_object, size=25000)
+        print("get_songs response: ",response)
+        arr = []
+        for hit in response["hits"]["hits"]:
+            dct = {"song_name":hit['_source'][FIELD_SONGNAME],"total_hashes":hit['_source'][FIELD_TOTAL_HASHES],
+                "file_sha1":hit['_source'][FIELD_FILE_SHA1]}
+            arr.append(dct)
+        return arr
 
     def get_song_by_id(self, song_id: int):
         """
@@ -248,16 +247,24 @@ class ElasticDatabase():
         :param song_id: song identifier.
         :return: a song by its identifier. Result must be a Dictionary.
         """
-        print("song_id: ",song_id)
+        #print("song_id: ",song_id)
         search_object = {'query': {'term': {"_id": song_id}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1, FIELD_TOTAL_HASHES]}
         response = self.cursor.search(index=SONGS_INDEXNAME, body=search_object)
         #print("response: ",response)
-        #print("response I want: ",response["hits"]["hits"][0]['fields'])
         dct = {"song_name":response["hits"]["hits"][0]['_source'][FIELD_SONGNAME],
             "total_hashes":response["hits"]["hits"][0]['_source'][FIELD_TOTAL_HASHES],
             "file_sha1":response["hits"]["hits"][0]['_source'][FIELD_FILE_SHA1]}
-        print("dct: ",dct)
+        #print("dct: ",dct)
         return dct
+
+    #Not used from here and below..
+
+    def __getstate__(self):
+        return self._options,
+
+    def __setstate__(self, state):
+        self._options, = state
+        self.cursor = cursor_factory(**self._options)
 
 
 def cursor_factory(**factory_options):

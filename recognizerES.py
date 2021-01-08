@@ -20,7 +20,7 @@ import importlib
 import codecs
 import binascii
 
-RECORD_SECONDS = 5
+RECORD_SECONDS = 15
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
@@ -249,8 +249,11 @@ def return_matches(hashes, batch_size: int = 1000):
     results = []
     for index in range(0, len(values), batch_size):
         res = db.find_matches(values[index: index + batch_size])
+        matches_count= 0
         for obj in res:
-            print(obj['fields'])
+            matches_count += 1
+            #print("obj:",obj)
+            #print(obj['fields'])
             #b64 = codecs.encode(codecs.decode(obj['fields']['hash'][0], 'hex'), 'base64')
             #ba = bytearray(obj['fields']['hash'][0],'utf-8')
             #b64 = codecs.encode(ba, 'base64').decode().replace("\n", "")
@@ -268,7 +271,7 @@ def return_matches(hashes, batch_size: int = 1000):
             #print("hsh: ",hsh)
             for song_sampled_offset in mapper[hsh]:
                 results.append((sid, offset - song_sampled_offset))
-
+        print("matches_count: ",matches_count)
         return results, dedup_hashes
 
 def find_matches(hashes):
@@ -300,7 +303,7 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
         :return: a list of dictionaries (based on topn) with match information.
         """
         #DEBUGEAR ESTA FUNCION
-        print("matches: ",matches)
+        #print("matches: ",matches)
         # count offset occurrences per song and keep only the maximum ones.
         sorted_matches = sorted(matches, key=lambda m: (m[0], m[1]))
         #print("sorted_matches: ",sorted_matches)
@@ -314,7 +317,7 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
         songs_result = []
         for song_id, offset, _ in songs_matches[0:topn]:  # consider topn elements in the result
             song = db.get_song_by_id(song_id)
-            print("song: ",song)
+            #print("song: ",song)
             song_name = song.get(SONG_NAME, None)
             song_hashes = song.get(FIELD_TOTAL_HASHES, None)
             nseconds = round(float(offset) / DEFAULT_FS * DEFAULT_WINDOW_SIZE * DEFAULT_OVERLAP_RATIO, 5)

@@ -25,8 +25,8 @@ config = {
     "database_type": "elastic"
 }
 
-#FIELD_FILE_SHA1 = 'file_sha1'
-FIELD_FILE_SHA1 = 2 #result is tuple, this field index is 2
+FIELD_FILE_SHA1 = 'file_sha1'
+#FIELD_FILE_SHA1 = 2 #result is tuple, this field index is 2
 
 
 # initialize db
@@ -239,7 +239,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
         #print("hashes example: ",type(hashes))
         #print("file_hash: ",file_hash)
         sid = db.insert_song(song_name, file_hash, len(hashes))
-        print("sid",sid)
+        #print("sid",sid)
         db.insert_hashes(sid, hashes)
         print("finish insert hashes!")
         db.set_song_fingerprinted(sid)
@@ -248,6 +248,8 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
 
 def load_fingerprinted_audio_hashes(songhashes_set):
     songs = db.get_songs()
+    #print("songs: ",songs)
+    print("len(songs): ",len(songs))
     for song in songs:
         song_hash = song[FIELD_FILE_SHA1]
         songhashes_set.add(song_hash)
@@ -255,9 +257,7 @@ def load_fingerprinted_audio_hashes(songhashes_set):
 
 db_cls = get_database(config.get("database_type", "elastic").lower())
 db = db_cls(**config.get("database", {}))
-db.create_songs_index()
-db.create_fingerprints_index()
-db.delete_unfingerprinted()
+db.setup() #db.create_songs_index() db.create_fingerprints_index() db.delete_unfingerprinted()
 
 # if we should limit seconds fingerprinted,
 # None|-1 means use entire track
