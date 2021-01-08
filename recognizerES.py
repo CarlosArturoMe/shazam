@@ -19,6 +19,21 @@ from itertools import groupby
 import importlib
 import codecs
 import binascii
+from pydub import AudioSegment
+from pydub.playback import play
+import soundfile as sf
+import threading
+import os
+import fnmatch
+from time import sleep
+import queue
+q = queue.Queue()
+from random import randrange
+import math
+import datetime
+import re
+from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+import pandas as pd
 
 RECORD_SECONDS = 15
 FORMAT = pyaudio.paInt16
@@ -357,45 +372,218 @@ def get_database(database_type: str = "mysql"):
     except (ImportError, KeyError):
         raise TypeError("Unsupported database type supplied.")
 
+def play_thread():
+    work = True
+    while work:
+        fragment_from_song = q.get()
+        if fragment_from_song is None:
+            break
+        play(fragment_from_song)
+        work = False
+
+def find_files(path: str, extensions):
+    """
+    Get all files that meet the specified extensions.
+
+    :param path: path to a directory with audio files.
+    :param extensions: file extensions to look for.
+    :return: a list of tuples with file name and its extension.
+    """
+    # Allow both with ".mp3" and without "mp3" to be used for extensions
+    extensions = [e.replace(".", "") for e in extensions]
+
+    results = []
+    for dirpath, dirnames, files in os.walk(path):
+        for extension in extensions:
+            for f in fnmatch.filter(files, f"*.{extension}"):
+                p = os.path.join(dirpath, f)
+                results.append(p)
+    return results
+
+
+#SNR in dB
+#given a signal and desired SNR, this gives the required AWGN what should be added to the signal to get the desired SNR
+def get_white_noise(signal,SNR):
+    #RMS value of signal
+    RMS_s=math.sqrt(np.mean(signal**2))
+    #RMS values of noise
+    RMS_n=math.sqrt(RMS_s**2/(pow(10,SNR/10)))
+    #Additive white gausian noise. Thereore mean=0
+    #Because sample length is large (typically > 40000)
+    #we can use the population formula for standard daviation.
+    #because mean=0 STD=RMS
+    STD_n=RMS_n
+    noise=np.random.normal(0, STD_n, signal.shape[0])
+    return noise
+
+#given a signal, noise (audio) and desired SNR, this gives the noise (scaled version of noise input) that gives the desired SNR
+def get_noise_from_sound(signal,noise,SNR):
+    RMS_s=math.sqrt(np.mean(signal**2))
+    #required RMS of noise
+    RMS_n=math.sqrt(RMS_s**2/(pow(10,SNR/10)))
+    
+    #current RMS of noise
+    RMS_n_current=math.sqrt(np.mean(noise**2))
+    noise=noise*(RMS_n/RMS_n_current)
+    
+    return noise
+
+def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_songs):
+    #print(songs_to_recognize)
+    #print(recognized_song_names)
+    #print(iteration)
+    dict_data = []
+    songs_to_recognize_just_name = []
+    for i in range(len(songs_to_recognize)):
+        #trackandfile = songs_to_recognize[i].replace('songs/', '')
+        track_name = re.sub(r'^.*?/', '', songs_to_recognize[i])
+        track_name = re.sub(r'^.*?/', '', track_name)
+        song_to_recognize = track_name.replace('.mp3', '')
+        songs_to_recognize_just_name.append(song_to_recognize)
+        #print("song_to_recognize: ",song_to_recognize)
+        #if re.search(recognized_song_names[i], str(songs_to_recognize[i])):
+        if song_to_recognize == recognized_song_names[i]:
+            dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),
+            "song_start_time":times[i]["song_start_time"],"correct":1,"fingerprint_times":times[i]["fingerprint_times"],
+            "query_time":times[i]["query_time"],"align_time":times[i]["align_time"],"total_time":times[i]["total_time"],
+            "final_results":final_results_arr[i]})
+        else:
+            dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),"song_start_time":times[i]["song_start_time"],
+            "correct":0,"fingerprint_times":times[i]["fingerprint_times"],"query_time":times[i]["query_time"],
+            "align_time":times[i]["align_time"],"total_time":times[i]["total_time"],"final_results":final_results_arr[i]})
+
+    csv_columns = ['file_name_played','file_name_result','song_start_time','correct','fingerprint_times','query_time','align_time',
+    'total_time','final_results']
+    if add_noise:
+        csv_name = "shazam_resultsES_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds_SNR" + SNR + "_atSong" + str(iteration+1) + ".csv"
+    else:
+        csv_name = "shazam_resultsES_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds" + "_atSong" + str(iteration+1) + ".csv"
+    csv_file = csv_name
+    try:
+        with open(csv_file, 'w') as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
+            writer.writeheader()
+            for data in dict_data:
+                writer.writerow(data)
+    except IOError:
+        print("I/O error")
+    #generate confusion matrix
+    y_true = pd.Series(songs_to_recognize_just_name, name="Actual")
+    y_pred = pd.Series(recognized_song_names)
+    #df_confusion = pd.crosstab(y_true, y_pred)
+    df_confusion = pd.crosstab(y_true, y_true)
+    for i in range(len(y_true)):
+        if y_true[i] != y_pred[i]:
+            df_confusion.at[y_true[i],y_true[i]] = str(0)
+            df_confusion.at[y_true[i],y_pred[i]] = str(1)
+    df_confusion.to_csv('CM_'+csv_name)
+    #using scykit
+    cm = confusion_matrix(songs_to_recognize_just_name, recognized_song_names)
+    cr = classification_report(songs_to_recognize_just_name, recognized_song_names,output_dict=True)
+    asc = accuracy_score(songs_to_recognize_just_name, recognized_song_names)
+    print(cm)
+    print(cr)
+    print("Accuracy score: ",asc)
+    #if iteration == len_songs-1:
+    df = pd.DataFrame(cm)
+    df.to_csv('CMSK_'+csv_name)
+    df2 = pd.DataFrame(cr).transpose()
+    df2.to_csv('CRSK_'+csv_name)
+    df3 = pd.DataFrame([asc])
+    df3.to_csv('ASSK_'+csv_name)
+
 #MAIN
-# start Recording
-stream = audio.open(format=FORMAT, channels=CHANNELS,
-                rate=RATE, input=True
-                ,frames_per_buffer=CHUNK)
-print ("recording...")
-data_channels = [[] for i in range(CHANNELS)]
-frames = []
-for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-    data = stream.read(CHUNK,exception_on_overflow = False)
-    nums = np.fromstring(data, np.int16)
-    frames.append(data)
-    for c in range(CHANNELS):
-        data_channels[c].extend(nums[c::CHANNELS])
-print("finished recording")
-
-# stop Recording
-stream.stop_stream()
-stream.close()
-audio.terminate()
-#print(data_channels)
-
-fingerprint_times = []
-hashes = set()  # to remove possible duplicated fingerprints we built a set.
-for channel in data_channels:
-    fingerprints, fingerprint_time = generate_fingerprints(channel, Fs=RATE)
-    fingerprint_times.append(fingerprint_time)
-    hashes |= set(fingerprints) #union
-#print("fingerprint_times: ",fingerprint_times)
-#print("hashes: ",hashes)
-db_cls = get_database(config.get("database_type", "elastic").lower())
+add_noise = False
+SNR = 0
+songs_to_recognize = find_files("songsES",["." + "mp3"])
+#songs_to_recognize = ["songs/000/000002.mp3"]
+#songs_to_recognize = songs_to_recognize[0:5]
+#song = songs_to_recognize[0]
+recognized_song_names = []
+times = []
+final_results_arr = []
+db_cls = get_database(config.get("database_type", "mysql").lower())
 db = db_cls(**config.get("database", {}))
-matches, dedup_hashes, query_time = find_matches(hashes)
-t = time()
-final_results = align_matches(matches, dedup_hashes, len(hashes))
-align_time = time() - t
-
-print("final_results: ",final_results)
-print("fingerprint_times: ",np.sum(fingerprint_times))
-print("query_time: ",query_time)
-print("align_time: ",align_time)
-#return final_results, np.sum(fingerprint_times), query_time, align_time
+len_songs = len(songs_to_recognize)
+fourthpart = math.floor(len_songs/4)
+medium = fourthpart * 2
+three_fourths = fourthpart * 3
+print("len_songs: ",len_songs)
+for song_i, song_name in enumerate(songs_to_recognize):
+    print("Now loading: ",song_name)
+    print("Song {} of {}".format(song_i,len_songs))
+    if add_noise:
+        signal, sr = librosa.load(song_name)
+        #additive gaussian noise
+        #noise=get_white_noise(signal,SNR=10)
+        signal=np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+        noise_file='city-traffic-sounds/city-traffic-sounds.mp3'
+        noise, sr = librosa.load(noise_file)
+        #print(len(noise))
+        noise=np.interp(noise, (noise.min(), noise.max()), (-1, 1))
+        if(len(noise)>len(signal)):
+            noise=noise[0:len(signal)]
+        noise=get_noise_from_sound(signal,noise,SNR)
+        signal=signal+noise
+        sf.write("signal_with_noise.wav", signal, sr)
+        song_to_play = AudioSegment.from_wav("signal_with_noise.wav")
+    else:
+        song_to_play = AudioSegment.from_mp3(song_name)
+    r_seconds = RECORD_SECONDS * 1000
+    duration_seconds = song_to_play.duration_seconds
+    #random start from 0 to duration of song - RECORD_SECONDS
+    song_start_time = randrange(0,int(duration_seconds)-RECORD_SECONDS)
+    print("start_time: ",song_start_time)
+    start_time = song_start_time * 1000
+    fragment_from_song = song_to_play[start_time:start_time+r_seconds]
+    #start playing song
+    t = threading.Thread(target=play_thread)
+    t.start()
+    q.put(fragment_from_song)
+    # start Recording
+    stream = audio.open(format=FORMAT, channels=CHANNELS,
+                    rate=RATE, input=True
+                    ,frames_per_buffer=CHUNK)
+    print ("recording...")
+    data_channels = [[] for i in range(CHANNELS)]
+    frames = []
+    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+        data = stream.read(CHUNK,exception_on_overflow = False)
+        nums = np.fromstring(data, np.int16)
+        frames.append(data)
+        for c in range(CHANNELS):
+            data_channels[c].extend(nums[c::CHANNELS])
+    print("finished recording")
+    # stop Recording
+    stream.stop_stream()
+    stream.close()
+    #print(data_channels)
+    fingerprint_times = []
+    hashes = set()  # to remove possible duplicated fingerprints we built a set.
+    for channel in data_channels:
+        fingerprints, fingerprint_time = generate_fingerprints(channel, Fs=RATE)
+        fingerprint_times.append(fingerprint_time)
+        hashes |= set(fingerprints) #union
+    #print("fingerprint_times: ",fingerprint_times)
+    #print("hashes: ",hashes)
+    matches, dedup_hashes, query_time = find_matches(hashes)
+    t = time()
+    final_results = align_matches(matches, dedup_hashes, len(hashes))
+    align_time = time() - t
+    print("final_results: ",final_results)
+    print("fingerprint_times: ",np.sum(fingerprint_times)) #total time for fingerprinting all the segments
+    print("query_time: ",query_time)
+    print("align_time: ",align_time)
+    if final_results:
+        final_results_arr.append(str(final_results))
+        recognized_song_names.append(str(final_results[0]['song_name']))
+    else:
+        final_results_arr.append("No results")
+        recognized_song_names.append("No results")
+    fingerprint_times = np.sum(fingerprint_times)
+    total_time = fingerprint_times + query_time + align_time
+    times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
+    "align_time":align_time,"total_time":total_time})
+    if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+        generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,len_songs)
+audio.terminate()

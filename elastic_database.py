@@ -190,7 +190,7 @@ class ElasticDatabase():
         Find coincident hashes
         :param hashes: A batch of hashes to find
             - hash: Part of a sha1 hash, in hexadecimal format
-        SCAN RETURNED 274 hits
+        SCAN RETURNED 1988 hits
         """
         queries = []
         for hsh in hashes:
@@ -232,7 +232,7 @@ class ElasticDatabase():
         search_object = {'query': {'term': {FIELD_FINGERPRINTED: True}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1,
         FIELD_TOTAL_HASHES]}
         response = self.cursor.search(index = SONGS_INDEXNAME, body=search_object, size=25000)
-        print("get_songs response: ",response)
+        #print("get_songs response: ",response)
         arr = []
         for hit in response["hits"]["hits"]:
             dct = {"song_name":hit['_source'][FIELD_SONGNAME],"total_hashes":hit['_source'][FIELD_TOTAL_HASHES],
