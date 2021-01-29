@@ -130,7 +130,7 @@ for song_i, song_name in enumerate(songs_to_recognize):
     duration_seconds = song_to_play.duration_seconds
     r_seconds = RECORD_SECONDS * 1000
     #random start from 5s (0) to duration of song - RECORD_SECONDS
-    if int(duration_seconds) - RECORD_SECONDS < 1:
+    if int(duration_seconds) - RECORD_SECONDS < 0:
         print("Not enough duration of song: ",duration_seconds)
         songs_to_delete.append([song_name,duration_seconds])
         os.remove(song_name)
