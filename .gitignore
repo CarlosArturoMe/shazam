@@ -2,3 +2,6 @@
 /tests_csv
 /songsES
 /__pycache__
+/song
+/song_full
+.DS_Store
