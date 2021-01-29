@@ -33,7 +33,7 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 5
+RECORD_SECONDS = 15
 # Number of results being returned for file recognition
 TOPN = 5
 FORMAT = pyaudio.paInt16
@@ -271,13 +271,15 @@ def return_matches(hashes, batch_size: int = 1000):
 
     results = []
     with db.cursor() as cur:
+
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
             query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
 
             cur.execute(query, values[index: index + batch_size])
-
+            matches_count= 0
             for hsh, sid, offset in cur:
+                matches_count +=1
                 if sid not in dedup_hashes.keys():
                     dedup_hashes[sid] = 1
                 else:
@@ -287,7 +289,7 @@ def return_matches(hashes, batch_size: int = 1000):
                 #print("hsh: ",hsh)
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
-
+            print("matches_count: ",matches_count)
         return results, dedup_hashes
 
 def find_matches(hashes):
@@ -503,6 +505,8 @@ times = []
 final_results_arr = []
 add_noise = False
 SNR = 0
+db_cls = get_database(config.get("database_type", "mysql").lower())
+db = db_cls(**config.get("database", {}))
 
 len_songs = len(songs_to_recognize)
 fourthpart = math.floor(len_songs/4)
@@ -572,8 +576,6 @@ for song_i, song_name in enumerate(songs_to_recognize):
         hashes |= set(fingerprints) #union
     #print("fingerprint_times: ",fingerprint_times)
     #print("hashes: ",hashes)
-    db_cls = get_database(config.get("database_type", "mysql").lower())
-    db = db_cls(**config.get("database", {}))
     matches, dedup_hashes, query_time = find_matches(hashes)
     t = time()
     final_results = align_matches(matches, dedup_hashes, len(hashes))

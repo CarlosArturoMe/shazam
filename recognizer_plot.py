@@ -426,29 +426,29 @@ def get_noise_from_sound(signal,noise,SNR):
 
 #MAIN
 #songs_to_recognize = find_files("songs",["." + "mp3"])
-songs_to_recognize = ["songs/000/000002.mp3"]
-#song = songs_to_recognize[0]
+songs_to_recognize = find_files("song",["." + "mp3"])
 recognized_song_names = []
 times = []
 add_noise = False
 SNR = 0
 for song_name in songs_to_recognize:
     signal, sr = librosa.load(song_name)
-    #time = np.arange(0,len(signal))/sr
-    #fig, ax = plt.subplots()
-    #D = librosa.stft(signal)
+    
+    time = np.arange(0,len(signal))/sr
+    fig, ax = plt.subplots()
+    D = librosa.stft(signal)
     #ax.plot(D)
     #ax.set(xlabel='Tiempo',ylabel='Amplitud')
     #plt.show()
     
-    #S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
-    #fig, ax = plt.subplots()
-    #ax.imshow(S_db)
-    #ax.set_xlabel('Tiempo')
-    #ax.set_ylabel('Frecuencia')
-    #ax.set_title("Espectograma")
-    #plt.gca().invert_yaxis()
-    #plt.show()
+    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+    fig, ax = plt.subplots()
+    ax.imshow(S_db)
+    ax.set_xlabel('Tiempo')
+    ax.set_ylabel('Frecuencia')
+    ax.set_title("Espectrograma")
+    plt.gca().invert_yaxis()
+    plt.show()
     if add_noise:
         #adding noise
         signal, sr = librosa.load(song_name)
@@ -530,7 +530,7 @@ for song_name in songs_to_recognize:
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,"align_time":align_time,"total_time":total_time})
     #sleep(10)
 audio.terminate()
-
+"""
 #generate CSV results
 dict_data = []
 for i in range(len(songs_to_recognize)):
@@ -559,3 +559,4 @@ try:
             writer.writerow(data)
 except IOError:
     print("I/O error")
+"""

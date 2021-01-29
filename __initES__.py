@@ -20,7 +20,8 @@ DATABASES = {
 config = {
     "database": {
         "host": "127.0.0.1",
-        "port": "9200"
+        "port": "9200",
+        "timeout":90
     },
     "database_type": "elastic"
 }

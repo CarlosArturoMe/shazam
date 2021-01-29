@@ -77,16 +77,22 @@ class ElasticDatabase():
         settings = {
             "settings": {
                 "number_of_shards": 1,
-                "number_of_replicas": 0
+                "number_of_replicas": 0,
+                "index": {
+                    "sort.field": FIELD_HASH, 
+                    "sort.order": "asc"
+                }
             },
             "mappings": {
                 "properties": {
                     FIELD_HASH: {
-                        "type": "binary",
-                        "_size":20
+                        "type": "keyword"
+                        #,
+                        #"_size":20
                     },
                     FIELD_SONG_ID: {
-                        "type": "_id"
+                        "type": "keyword"
+                        #"type": "_id"
                     },
                     FIELD_OFFSET: {
                         "type": "integer"
@@ -167,7 +173,7 @@ class ElasticDatabase():
             yield {
                 "_index": FINGERPRINTS_INDEXNAME,
                 FIELD_SONG_ID: val[0],
-                FIELD_HASH: val[1],
+                FIELD_HASH: val[1],#.upper(),
                 FIELD_OFFSET: val[2]
             }
 
@@ -190,19 +196,25 @@ class ElasticDatabase():
         Find coincident hashes
         :param hashes: A batch of hashes to find
             - hash: Part of a sha1 hash, in hexadecimal format
-        SCAN RETURNED 1988 hits
+        SCAN RETURNED 5441 hits
         """
         queries = []
         for hsh in hashes:
             #dec = codecs.encode(codecs.decode(hsh, 'hex'), 'base64').decode().replace("\n", "")
             #dec = str(binascii.unhexlify(hsh))
             #print("hsh: ",hsh)
-            #term, match 
-            queries.append({'match':{FIELD_HASH:hsh}})
-        #res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={'query':{"bool":{"should":queries}}
-        res= helpers.scan(self.cursor,index=FINGERPRINTS_INDEXNAME,query={'query':{"bool":{"should":queries}},
-        "fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
-        return res
+            #try term, match 
+            queries.append({'term':{FIELD_HASH:hsh}})
+            #queries.append(hsh)
+        #print("Query: ",{'query':{"terms":{FIELD_HASH:queries}},
+        #    "fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
+        #res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={"size":10000,"query":{"terms":{FIELD_HASH:queries}}})
+            #,"fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
+        print("Query: ",{'query':{"bool":{"should":queries}}})
+        res= helpers.scan(self.cursor,index=FINGERPRINTS_INDEXNAME,query={'query':{"bool":{"should":queries}}})
+        #,"fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
+        #print("total hits: ",res["hits"]["total"])
+        return res#["hits"]["hits"]
 
     def insert_song(self, song_name: str, file_hash: str, total_hashes: int) -> int:
         """
@@ -229,9 +241,10 @@ class ElasticDatabase():
 
         :return: a dictionary with the songs info.
         """
-        search_object = {'query': {'term': {FIELD_FINGERPRINTED: True}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1,
+        search_object = {"size":25000,
+            'query': {'term': {FIELD_FINGERPRINTED: True}}, "fields": [FIELD_SONGNAME, FIELD_FILE_SHA1,
         FIELD_TOTAL_HASHES]}
-        response = self.cursor.search(index = SONGS_INDEXNAME, body=search_object, size=25000)
+        response = self.cursor.search(index = SONGS_INDEXNAME, body=search_object)
         #print("get_songs response: ",response)
         arr = []
         for hit in response["hits"]["hits"]:

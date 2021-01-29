@@ -94,7 +94,8 @@ DATABASES = {
 config = {
     "database": {
         "host": "127.0.0.1",
-        "port": "9200"
+        "port": "9200",
+        "timeout":30
     },
     "database_type": "elastic"
 }
@@ -252,18 +253,22 @@ def return_matches(hashes, batch_size: int = 1000):
     # Create a dictionary of hash => offset pairs for later lookups
     mapper = {}
     for hsh, offset in hashes:
-        if hsh.upper() in mapper.keys():
-            mapper[hsh.upper()].append(offset)
+        #if hsh.upper() in mapper.keys():
+        if hsh in mapper.keys():
+            #mapper[hsh.upper()].append(offset)
+            mapper[hsh].append(offset)
         else:
-            mapper[hsh.upper()] = [offset]
+            #mapper[hsh.upper()] = [offset]
+            mapper[hsh] = [offset]
 
     values = list(mapper.keys())
     # in order to count each hash only once per db offset we use the dic below
     dedup_hashes = {}
-
+    print("batch_size: ",batch_size)
     results = []
     for index in range(0, len(values), batch_size):
         res = db.find_matches(values[index: index + batch_size])
+        #print("res: ",res)
         matches_count= 0
         for obj in res:
             matches_count += 1
@@ -273,10 +278,10 @@ def return_matches(hashes, batch_size: int = 1000):
             #ba = bytearray(obj['fields']['hash'][0],'utf-8')
             #b64 = codecs.encode(ba, 'base64').decode().replace("\n", "")
             #b64 = obj['fields']['hash'][0].encode("utf-8").hex()
-            hsh = obj['fields'][FIELD_HASH][0].upper()#[0:FINGERPRINT_REDUCTION]
+            hsh = obj['_source'][FIELD_HASH]#.upper()#[0:FINGERPRINT_REDUCTION]
             #print("hsh: ",hsh)
-            sid = obj['fields'][FIELD_SONG_ID][0]
-            offset = obj['fields'][FIELD_OFFSET][0]
+            sid = obj['_source'][FIELD_SONG_ID]
+            offset = obj['_source'][FIELD_OFFSET]
             if sid not in dedup_hashes.keys():
                 dedup_hashes[sid] = 1
             else:
@@ -287,7 +292,7 @@ def return_matches(hashes, batch_size: int = 1000):
             for song_sampled_offset in mapper[hsh]:
                 results.append((sid, offset - song_sampled_offset))
         print("matches_count: ",matches_count)
-        return results, dedup_hashes
+    return results, dedup_hashes
 
 def find_matches(hashes):
     """
@@ -493,14 +498,14 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_
     df3.to_csv('ASSK_'+csv_name)
 
 #MAIN
-testing_all = False
+testing_all = True
 if testing_all:
     add_noise = False
     SNR = 0
     songs_to_recognize = find_files("songsES",["." + "mp3"])
-    #songs_to_recognize = ["songs/000/000002.mp3"]
+    #songs_to_recognize = ["songsES/000/000002.mp3"]
     #songs_to_recognize = songs_to_recognize[0:5]
-    #song = songs_to_recognize[0]
+    #songs_to_recognize = songs_to_recognize[0]
     recognized_song_names = []
     times = []
     final_results_arr = []
@@ -567,7 +572,8 @@ if testing_all:
             fingerprint_times.append(fingerprint_time)
             hashes |= set(fingerprints) #union
         #print("fingerprint_times: ",fingerprint_times)
-        #print("hashes: ",hashes)
+        #print("hashes example: ",next(iter(hashes)))
+        print("len(hashes): ",len(hashes))
         matches, dedup_hashes, query_time = find_matches(hashes)
         t = time()
         final_results = align_matches(matches, dedup_hashes, len(hashes))

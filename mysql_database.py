@@ -219,7 +219,7 @@ class MySQLDatabase():
         with self.cursor(dictionary=True) as cur:
             cur.execute(self.SELECT_SONG, (song_id,))
             response = cur.fetchone()
-            print("response: ",response)
+            #print("response: ",response)
             #print("dict fetchone: ",dict(response))
             dct = {"song_name":response[0],"total_hashes":response[2],"file_sha1":response[1]}
             #return cur.fetchone()
