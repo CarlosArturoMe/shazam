@@ -134,5 +134,6 @@ for song_i, song_name in enumerate(songs_to_recognize):
         print("Not enough duration of song: ",duration_seconds) 
         songs_to_delete.append(song_name)
         os.remove(song_name)
+print("len(songs_to_delete): ",len(songs_to_delete))
 df = pd.DataFrame(songs_to_delete, columns=["songs_name"])
 df.to_csv('songs_deleted.csv', index=False)
