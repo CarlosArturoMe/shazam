@@ -131,8 +131,8 @@ for song_i, song_name in enumerate(songs_to_recognize):
     r_seconds = RECORD_SECONDS * 1000
     #random start from 5s (0) to duration of song - RECORD_SECONDS
     if int(duration_seconds) - RECORD_SECONDS < 1:
-        print("Not enough duration of song: ",duration_seconds) 
-        songs_to_delete.append(song_name)
+        print("Not enough duration of song: ",duration_seconds)
+        songs_to_delete.append([song_name,duration_seconds])
         os.remove(song_name)
 print("len(songs_to_delete): ",len(songs_to_delete))
 df = pd.DataFrame(songs_to_delete, columns=["songs_name"])
