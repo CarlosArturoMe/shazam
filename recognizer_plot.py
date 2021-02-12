@@ -7,7 +7,6 @@ np.set_printoptions(threshold=sys.maxsize)
 import matplotlib.pyplot as plt
 import librosa.display
 import csv
-from time import time
 import matplotlib.mlab as mlab
 from scipy.ndimage.morphology import (binary_erosion,
                                       generate_binary_structure,
@@ -30,13 +29,14 @@ from random import randrange
 import math
 import datetime
 import re
+from time import time
 
 
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
 CHUNK = 8192
-RECORD_SECONDS = 20
+RECORD_SECONDS = 15
 audio = pyaudio.PyAudio()
 WAVE_OUTPUT_FILENAME = "file.wav"
 DEFAULT_WINDOW_SIZE = 4096  #The number of data points used in each block for the FFT
@@ -433,14 +433,13 @@ add_noise = False
 SNR = 0
 for song_name in songs_to_recognize:
     signal, sr = librosa.load(song_name)
-    
-    time = np.arange(0,len(signal))/sr
-    fig, ax = plt.subplots()
-    D = librosa.stft(signal)
+    #time = np.arange(0,len(signal))/sr
+    #fig, ax = plt.subplots()
+    #D = librosa.stft(signal)
     #ax.plot(D)
     #ax.set(xlabel='Tiempo',ylabel='Amplitud')
     #plt.show()
-    
+    """
     S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
     fig, ax = plt.subplots()
     ax.imshow(S_db)
@@ -449,6 +448,7 @@ for song_name in songs_to_recognize:
     ax.set_title("Espectrograma")
     plt.gca().invert_yaxis()
     plt.show()
+    """
     if add_noise:
         #adding noise
         signal, sr = librosa.load(song_name)
@@ -530,33 +530,3 @@ for song_name in songs_to_recognize:
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,"align_time":align_time,"total_time":total_time})
     #sleep(10)
 audio.terminate()
-"""
-#generate CSV results
-dict_data = []
-for i in range(len(songs_to_recognize)):
-    #trackandfile = songs_to_recognize[i].replace('songs/', '')
-    #track_name = songs_to_recognize[i].replace('.mp3', '')
-    if re.search(recognized_song_names[i], str(songs_to_recognize[i])):
-        dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),"song_start_time":times[i]["song_start_time"],
-        "correct":1,"fingerprint_times":times[i]["fingerprint_times"],"query_time":times[i]["query_time"],
-        "align_time":times[i]["align_time"],"total_time":times[i]["total_time"]})
-    else:
-        dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),"song_start_time":times[i]["song_start_time"],
-        "correct":0,"fingerprint_times":times[i]["fingerprint_times"],"query_time":times[i]["query_time"],
-        "align_time":times[i]["align_time"],"total_time":times[i]["total_time"]})
-
-csv_columns = ['file_name_played','file_name_result','song_start_time','correct','fingerprint_times','query_time','align_time','total_time']
-if add_noise:
-    csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds_SNR" + SNR + ".csv"
-else:
-    csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds.csv"
-csv_file = csv_name
-try:
-    with open(csv_file, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-        writer.writeheader()
-        for data in dict_data:
-            writer.writerow(data)
-except IOError:
-    print("I/O error")
-"""

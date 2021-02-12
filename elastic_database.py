@@ -191,30 +191,35 @@ class ElasticDatabase():
         for index in range(0, len(hashes), batch_size):
             helpers.bulk(self.cursor, self.gen_dicts(values[index: index + batch_size]))
 
-    def find_matches(self, hashes):
+    def find_matches(self, hashes, search_after,size=100):
         """
         Find coincident hashes
         :param hashes: A batch of hashes to find
             - hash: Part of a sha1 hash, in hexadecimal format
         SCAN RETURNED 5441 hits
         """
+        #print("search_after: ",search_after)
         queries = []
         for hsh in hashes:
             #dec = codecs.encode(codecs.decode(hsh, 'hex'), 'base64').decode().replace("\n", "")
             #dec = str(binascii.unhexlify(hsh))
             #print("hsh: ",hsh)
             #try term, match 
-            queries.append({'term':{FIELD_HASH:hsh}})
-            #queries.append(hsh)
-        #print("Query: ",{'query':{"terms":{FIELD_HASH:queries}},
-        #    "fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
-        #res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={"size":10000,"query":{"terms":{FIELD_HASH:queries}}})
+            #queries.append({'term':{FIELD_HASH:hsh}})
+            queries.append(hsh)
+        #print("Query: ",{"size":100,"query":{"terms":{FIELD_HASH:queries}}})
+        if search_after:
+            res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={"size":size,"sort":[{FIELD_SONG_ID:"asc"},
+            {FIELD_SONG_ID:"asc"}],"search_after":search_after,"query":{"terms":{FIELD_HASH:queries}}})
+        else:
+            res= self.cursor.search(index=FINGERPRINTS_INDEXNAME,body={"size":size,"sort":[{FIELD_SONG_ID:"asc"},
+            {FIELD_SONG_ID:"asc"}],"query":{"terms":{FIELD_HASH:queries}}})
             #,"fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
-        print("Query: ",{'query':{"bool":{"should":queries}}})
-        res= helpers.scan(self.cursor,index=FINGERPRINTS_INDEXNAME,query={'query':{"bool":{"should":queries}}})
+        #print("Query: ",{'query':{"bool":{"should":queries}}})
+        #res= helpers.scan(self.cursor,index=FINGERPRINTS_INDEXNAME,query={'query':{"bool":{"should":queries}}})
         #,"fields": [FIELD_HASH, FIELD_SONG_ID, FIELD_OFFSET]})
         #print("total hits: ",res["hits"]["total"])
-        return res#["hits"]["hits"]
+        return res["hits"]#["hits"]
 
     def insert_song(self, song_name: str, file_hash: str, total_hashes: int) -> int:
         """

@@ -236,7 +236,7 @@ def generate_fingerprints(samples, Fs=RATE):
     
     return hashes, fingerprint_time
 
-def return_matches(hashes, batch_size: int = 1000):
+def return_matches(hashes, batch_size: int = 100):
     """
     Searches the database for pairs of (hash, offset) values.
 
@@ -267,31 +267,46 @@ def return_matches(hashes, batch_size: int = 1000):
     print("batch_size: ",batch_size)
     results = []
     for index in range(0, len(values), batch_size):
-        res = db.find_matches(values[index: index + batch_size])
-        #print("res: ",res)
-        matches_count= 0
-        for obj in res:
-            matches_count += 1
-            #print("obj:",obj)
-            #print(obj['fields'])
-            #b64 = codecs.encode(codecs.decode(obj['fields']['hash'][0], 'hex'), 'base64')
-            #ba = bytearray(obj['fields']['hash'][0],'utf-8')
-            #b64 = codecs.encode(ba, 'base64').decode().replace("\n", "")
-            #b64 = obj['fields']['hash'][0].encode("utf-8").hex()
-            hsh = obj['_source'][FIELD_HASH]#.upper()#[0:FINGERPRINT_REDUCTION]
-            #print("hsh: ",hsh)
-            sid = obj['_source'][FIELD_SONG_ID]
-            offset = obj['_source'][FIELD_OFFSET]
-            if sid not in dedup_hashes.keys():
-                dedup_hashes[sid] = 1
+        sort=None
+        while True:
+            res = db.find_matches(values[index: index + batch_size],sort)
+            #print("res: ",res)
+            if len(res["hits"]) == 0:
+                break
             else:
-                dedup_hashes[sid] += 1
-            #  we now evaluate all offset for each  hash matched
-            #print("mapper: ",mapper)
-            #print("hsh: ",hsh)
-            for song_sampled_offset in mapper[hsh]:
-                results.append((sid, offset - song_sampled_offset))
-        print("matches_count: ",matches_count)
+                res = res["hits"]
+            matches_count= 0
+        
+            for obj in res:
+                if obj['sort']:
+                    #print("obj[sort]: ",obj['sort'])
+                    #sort.add(obj['sort'])
+                    sort = obj['sort']
+                matches_count += 1
+                #print("obj:",obj)
+                #print(obj['fields'])
+                #b64 = codecs.encode(codecs.decode(obj['fields']['hash'][0], 'hex'), 'base64')
+                #ba = bytearray(obj['fields']['hash'][0],'utf-8')
+                #b64 = codecs.encode(ba, 'base64').decode().replace("\n", "")
+                #b64 = obj['fields']['hash'][0].encode("utf-8").hex()
+                hsh = obj['_source'][FIELD_HASH]#.upper()#[0:FINGERPRINT_REDUCTION]
+                #print("hsh: ",hsh)
+                sid = obj['_source'][FIELD_SONG_ID]
+                offset = obj['_source'][FIELD_OFFSET]
+                if sid not in dedup_hashes.keys():
+                    dedup_hashes[sid] = 1
+                else:
+                    dedup_hashes[sid] += 1
+                #  we now evaluate all offset for each  hash matched
+                #print("mapper: ",mapper)
+                #print("hsh: ",hsh)
+                for song_sampled_offset in mapper[hsh]:
+                    results.append((sid, offset - song_sampled_offset))
+            #print("matches_count: ",matches_count)
+        #sorted_hashes = sorted(dedup_hashes, key=lambda m: (m[0], m[1]))
+        #sorted_hashes = sorted(dedup_hashes, key=dedup_hashes.get, reverse=True)
+        sorted_hashes = {k: v for k, v in sorted(dedup_hashes.items(), key=lambda item: item[1], reverse=True)}
+        print("sorted_hashes: ",sorted_hashes)
     return results, dedup_hashes
 
 def find_matches(hashes):
