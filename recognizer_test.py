@@ -92,7 +92,7 @@ config = {
     "database": {
         "host": "127.0.0.1",
         "user": "root",
-        "password": "12345678",
+        "password": "1234",
         "database": "music_recognition"
     },
     "database_type": "mysql"
@@ -289,7 +289,7 @@ def return_matches(hashes, batch_size: int = 1000):
                 #print("hsh: ",hsh)
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
-            print("matches_count: ",matches_count)
+            #print("matches_count: ",matches_count)
         return results, dedup_hashes
 
 def find_matches(hashes):
@@ -496,9 +496,9 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_
 
 
 #MAIN
-songs_to_recognize = find_files("songs",["." + "mp3"])
-#songs_to_recognize = ["songs/000/000002.mp3"]
-#songs_to_recognize = songs_to_recognize[0:5]
+songs_to_recognize = find_files("songsES",["." + "mp3"])
+#songs_to_recognize = ["songsES/000/000002.mp3"]
+songs_to_recognize = songs_to_recognize[0:100]
 #song = songs_to_recognize[0]
 recognized_song_names = []
 times = []
@@ -512,10 +512,6 @@ len_songs = len(songs_to_recognize)
 fourthpart = math.floor(len_songs/4)
 medium = fourthpart * 2
 three_fourths = fourthpart * 3
-print("len_songs: ",len_songs)
-print("fourthpart: ",fourthpart)
-print("medium: ",medium)
-print("three_fourths: ",three_fourths)
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
     if add_noise:
@@ -595,6 +591,7 @@ for song_i, song_name in enumerate(songs_to_recognize):
     total_time = fingerprint_times + query_time + align_time
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
     "align_time":align_time,"total_time":total_time})
-    if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+    #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+    if len_songs-1 == song_i:
         generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,len_songs)
 audio.terminate()

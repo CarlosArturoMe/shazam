@@ -20,7 +20,7 @@ config = {
     "database": {
         "host": "127.0.0.1",
         "user": "root",
-        "password": "12345678",
+        "password": "1234",
         "database": "music_recognition"
     },
     "database_type": "mysql"
@@ -270,8 +270,8 @@ if limit == -1:  # for JSON compatibility
 songs = db.get_songs()
 songhashes_set = set()  # to know which ones we've computed before
 for song in songs:
-    print("song fingerprinted: ",song)
+    #print("song fingerprinted: ",song)
     song_hash = song[FIELD_FILE_SHA1]
     songhashes_set.add(song_hash)
 #print("songhashes_set: ",songhashes_set)
-fingerprint_directory("songs", ["." + "mp3"], 4,songhashes_set)
+fingerprint_directory("songsES", ["." + "mp3"], 4,songhashes_set)

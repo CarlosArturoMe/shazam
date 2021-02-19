@@ -19,7 +19,7 @@ DATABASES = {
 
 config = {
     "database": {
-        "host": "127.0.0.1",
+        "host": "148.204.66.163",
         "port": "9200",
         "timeout":90
     },

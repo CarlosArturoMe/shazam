@@ -93,9 +93,9 @@ DATABASES = {
 
 config = {
     "database": {
-        "host": "127.0.0.1",
+        "host": "148.204.66.163",
         "port": "9200",
-        "timeout":30
+        "timeout":90
     },
     "database_type": "elastic"
 }
@@ -275,14 +275,14 @@ def return_matches(hashes, batch_size: int = 100):
                 break
             else:
                 res = res["hits"]
-            matches_count= 0
+            #matches_count= 0
         
             for obj in res:
                 if obj['sort']:
                     #print("obj[sort]: ",obj['sort'])
                     #sort.add(obj['sort'])
                     sort = obj['sort']
-                matches_count += 1
+                #matches_count += 1
                 #print("obj:",obj)
                 #print(obj['fields'])
                 #b64 = codecs.encode(codecs.decode(obj['fields']['hash'][0], 'hex'), 'base64')
@@ -303,10 +303,8 @@ def return_matches(hashes, batch_size: int = 100):
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
             #print("matches_count: ",matches_count)
-        #sorted_hashes = sorted(dedup_hashes, key=lambda m: (m[0], m[1]))
-        #sorted_hashes = sorted(dedup_hashes, key=dedup_hashes.get, reverse=True)
-        sorted_hashes = {k: v for k, v in sorted(dedup_hashes.items(), key=lambda item: item[1], reverse=True)}
-        print("sorted_hashes: ",sorted_hashes)
+        #sorted_hashes = {k: v for k, v in sorted(dedup_hashes.items(), key=lambda item: item[1], reverse=True)}
+        #print("sorted_hashes: ",sorted_hashes)
     return results, dedup_hashes
 
 def find_matches(hashes):
@@ -517,14 +515,15 @@ testing_all = True
 if testing_all:
     add_noise = False
     SNR = 0
+    #songs_to_recognize = find_files("songES",["." + "mp3"])
     songs_to_recognize = find_files("songsES",["." + "mp3"])
     #songs_to_recognize = ["songsES/000/000002.mp3"]
-    #songs_to_recognize = songs_to_recognize[0:5]
+    songs_to_recognize = songs_to_recognize[0:100]
     #songs_to_recognize = songs_to_recognize[0]
     recognized_song_names = []
     times = []
     final_results_arr = []
-    db_cls = get_database(config.get("database_type", "mysql").lower())
+    db_cls = get_database(config.get("database_type", "elastic").lower())
     db = db_cls(**config.get("database", {}))
     len_songs = len(songs_to_recognize)
     fourthpart = math.floor(len_songs/4)
@@ -588,7 +587,7 @@ if testing_all:
             hashes |= set(fingerprints) #union
         #print("fingerprint_times: ",fingerprint_times)
         #print("hashes example: ",next(iter(hashes)))
-        print("len(hashes): ",len(hashes))
+        print("len hashes generated: ",len(hashes))
         matches, dedup_hashes, query_time = find_matches(hashes)
         t = time()
         final_results = align_matches(matches, dedup_hashes, len(hashes))
@@ -607,7 +606,8 @@ if testing_all:
         total_time = fingerprint_times + query_time + align_time
         times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
         "align_time":align_time,"total_time":total_time})
-        if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+        #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+        if len_songs-1 == song_i:
             generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,len_songs)
     audio.terminate()
 

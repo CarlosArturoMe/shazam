@@ -29,7 +29,7 @@ class ElasticDatabase():
         conn = Elasticsearch(**options)
         # Ping the connection before using it from the cache.
         if conn.ping():
-            print('Connection succesful!!')
+            print('Connection to ES succesful!!')
         else:
             print('Connection unsuccesful')
         self._options = options
@@ -64,7 +64,7 @@ class ElasticDatabase():
             if not self.cursor.indices.exists(SONGS_INDEXNAME):
                 # Ignore 400 means to ignore "Index Already Exist" error.
                 self.cursor.indices.create(index=SONGS_INDEXNAME, ignore=400, body=settings)
-                print('Created Index')
+                print('Created songs Index')
                 created = True
         except Exception as ex:
             print(str(ex))
@@ -76,7 +76,7 @@ class ElasticDatabase():
         created = False
         settings = {
             "settings": {
-                "number_of_shards": 1,
+                "number_of_shards": 2,
                 "number_of_replicas": 0,
                 "index": {
                     "sort.field": FIELD_HASH, 
@@ -106,7 +106,7 @@ class ElasticDatabase():
             if not self.cursor.indices.exists(FINGERPRINTS_INDEXNAME):
                 # Ignore 400 means to ignore "Index Already Exist" error.
                 self.cursor.indices.create(index=FINGERPRINTS_INDEXNAME, ignore=400, body=settings)
-                print('Created Index')
+                print('Created fingerprint Index')
             created = True
         except Exception as ex:
             print(str(ex))
