@@ -244,7 +244,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
         db.insert_hashes(sid, hashes)
         print("finish insert hashes!")
         db.set_song_fingerprinted(sid)
-        songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
+    songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
 
 
 def load_fingerprinted_audio_hashes(songhashes_set):

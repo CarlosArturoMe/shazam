@@ -76,7 +76,7 @@ class ElasticDatabase():
         created = False
         settings = {
             "settings": {
-                "number_of_shards": 2,
+                "number_of_shards": 3,
                 "number_of_replicas": 0,
                 "index": {
                     "sort.field": FIELD_HASH, 
