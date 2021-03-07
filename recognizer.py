@@ -252,12 +252,12 @@ def return_matches(hashes, batch_size: int = 1000):
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
             query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
-            print("query: ",query)
-            print(values[index: index + batch_size])
+            #print("query: ",query)
+            #print(values[index: index + batch_size])
             cur.execute(query, values[index: index + batch_size])
 
             for hsh, sid, offset in cur:
-                print("hsh: ",hsh)
+                #print("hsh: ",hsh)
                 if sid not in dedup_hashes.keys():
                     dedup_hashes[sid] = 1
                 else:

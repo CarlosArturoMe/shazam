@@ -17,6 +17,8 @@ import hashlib
 from operator import itemgetter
 from itertools import groupby
 import importlib
+import codecs
+import binascii
 from pydub import AudioSegment
 from pydub.playback import play
 import soundfile as sf
@@ -32,10 +34,9 @@ import datetime
 import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
+import concurrent.futures
 
 RECORD_SECONDS = 15
-# Number of results being returned for file recognition
-TOPN = 5
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
@@ -81,21 +82,23 @@ SELECT_MULTIPLE = f"""
     """
 IN_MATCH = f"UNHEX(%s)"
 
+# Number of results being returned for file recognition
+TOPN = 2
 
 # DATABASE CLASS INSTANCES:
 DATABASES = {
     'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
+    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase"),
+    'elastic': ("elastic_database","ElasticDatabase")
 }
 
 config = {
     "database": {
         "host": "127.0.0.1",
-        "user": "root",
-        "password": "12345678",
-        "database": "music_recognition"
+        "port": "9200",
+        "timeout":90
     },
-    "database_type": "mysql"
+    "database_type": "elastic"
 }
 
 def generate_hashes(peaks, fan_value: int = DEFAULT_FAN_VALUE):
@@ -124,7 +127,6 @@ def generate_hashes(peaks, fan_value: int = DEFAULT_FAN_VALUE):
                 t1 = peaks[i][idx_time]
                 t2 = peaks[i + j][idx_time]
                 t_delta = t2 - t1
-                # t_delta son ms
                 if MIN_HASH_TIME_DELTA <= t_delta <= MAX_HASH_TIME_DELTA:
                     h = hashlib.sha1(f"{str(freq1)}|{str(freq2)}|{str(t_delta)}".encode('utf-8'))
                     hashes.append((h.hexdigest()[0:FINGERPRINT_REDUCTION], t1))
@@ -212,12 +214,6 @@ def fingerprint(channel_samples,
     :return: a list of hashes with their corresponding offsets.
     """
     # FFT the signal and extract frequency components, 0 is the spectrum
-    #print(specgram[0])
-    #for arr in specgram[0]:
-    #    for num in arr:
-    #        print(abs(num))
-    #print("to take specgram")
-    #REVISANDO AQUI
     arr2D = mlab.specgram(
         channel_samples,
         NFFT=wsize,
@@ -230,8 +226,7 @@ def fingerprint(channel_samples,
     arr2D = 10 * np.log10(arr2D, out=np.zeros_like(arr2D), where=(arr2D != 0))
     #print("arr2D: ",arr2D)
     local_maxima = get_2D_peaks(arr2D, plot=False, amp_min=amp_min)
-    #print("local_maxima: ",local_maxima)
-    # return hashes 
+    #print("local_maxima: ",local_maxima) 
     return generate_hashes(local_maxima, fan_value=fan_value)
 
 def generate_fingerprints(samples, Fs=RATE):
@@ -242,7 +237,10 @@ def generate_fingerprints(samples, Fs=RATE):
     
     return hashes, fingerprint_time
 
-def return_matches(hashes, batch_size: int = 1000):
+def search_matches(values):
+    return db.find_matches(values)
+
+def return_matches(hashes, batch_size: int = 10):
     """
     Searches the database for pairs of (hash, offset) values.
 
@@ -259,27 +257,48 @@ def return_matches(hashes, batch_size: int = 1000):
     # Create a dictionary of hash => offset pairs for later lookups
     mapper = {}
     for hsh, offset in hashes:
-        if hsh.upper() in mapper.keys():
-            mapper[hsh.upper()].append(offset)
+        #if hsh.upper() in mapper.keys():
+        if hsh in mapper.keys():
+            #mapper[hsh.upper()].append(offset)
+            mapper[hsh].append(offset)
         else:
-            mapper[hsh.upper()] = [offset]
+            #mapper[hsh.upper()] = [offset]
+            mapper[hsh] = [offset]
 
     values = list(mapper.keys())
-
     # in order to count each hash only once per db offset we use the dic below
     dedup_hashes = {}
-
+    print("batch_size: ",batch_size)
     results = []
-    with db.cursor() as cur:
-
+    thread_results = []
+    with concurrent.futures.ThreadPoolExecutor() as executor:
         for index in range(0, len(values), batch_size):
-            # Create our IN part of the query
-            query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
-
-            cur.execute(query, values[index: index + batch_size])
-            #matches_count= 0
-            for hsh, sid, offset in cur:
-                #matches_count +=1
+            thread_results.append(executor.submit(search_matches,values[index: index + batch_size]))
+        for f in concurrent.futures.as_completed(thread_results):
+            #while True:
+            res = f.result()
+            #print("resS: ",res)
+            #if len(res["hits"]) == 0:
+            #    break
+            #else:
+            #res = res["hits"]
+            matches_count= 0
+        
+            for obj in res:
+                #if obj['sort']:
+                    #print("obj[sort]: ",obj['sort'])
+                #    sort = obj['sort']
+                matches_count += 1
+                #print("obj:",obj)
+                #print(obj['fields'])
+                #b64 = codecs.encode(codecs.decode(obj['fields']['hash'][0], 'hex'), 'base64')
+                #ba = bytearray(obj['fields']['hash'][0],'utf-8')
+                #b64 = codecs.encode(ba, 'base64').decode().replace("\n", "")
+                #b64 = obj['fields']['hash'][0].encode("utf-8").hex()
+                hsh = obj['_source'][FIELD_HASH]#.upper()#[0:FINGERPRINT_REDUCTION]
+                #print("hsh: ",hsh)
+                sid = obj['_source'][FIELD_SONG_ID]
+                offset = obj['_source'][FIELD_OFFSET]
                 if sid not in dedup_hashes.keys():
                     dedup_hashes[sid] = 1
                 else:
@@ -289,8 +308,10 @@ def return_matches(hashes, batch_size: int = 1000):
                 #print("hsh: ",hsh)
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
-            #print("matches_count: ",matches_count)
-        return results, dedup_hashes
+                print("matches_count: ",matches_count)
+            #sorted_hashes = {k: v for k, v in sorted(dedup_hashes.items(), key=lambda item: item[1], reverse=True)}
+            #print("sorted_hashes: ",sorted_hashes)
+    return results, dedup_hashes
 
 def find_matches(hashes):
     """
@@ -321,19 +342,21 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
         :return: a list of dictionaries (based on topn) with match information.
         """
         #DEBUGEAR ESTA FUNCION
+        #print("matches: ",matches)
         # count offset occurrences per song and keep only the maximum ones.
         sorted_matches = sorted(matches, key=lambda m: (m[0], m[1]))
         #print("sorted_matches: ",sorted_matches)
         counts = [(*key, len(list(group))) for key, group in groupby(sorted_matches, key=lambda m: (m[0], m[1]))]
+        #print(counts)
         songs_matches = sorted(
             [max(list(group), key=lambda g: g[2]) for key, group in groupby(counts, key=lambda count: count[0])],
             key=lambda count: count[2], reverse=True
-        )
+        ) #reverse=True = From higest to lowest
         #print("songs_matches: ",songs_matches)
         songs_result = []
         for song_id, offset, _ in songs_matches[0:topn]:  # consider topn elements in the result
             song = db.get_song_by_id(song_id)
-
+            #print("song: ",song)
             song_name = song.get(SONG_NAME, None)
             song_hashes = song.get(FIELD_TOTAL_HASHES, None)
             nseconds = round(float(offset) / DEFAULT_FS * DEFAULT_WINDOW_SIZE * DEFAULT_OVERLAP_RATIO, 5)
@@ -341,13 +364,9 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
 
             song = {
                 SONG_ID: song_id,
-                #SONG_NAME: song_name.encode("utf8"),
-                SONG_NAME: str(song_name),
-                #how many hashes were created for the sample
+                SONG_NAME: song_name,#.encode("utf8"),
                 INPUT_HASHES: queried_hashes,
-                #total hashes of song in DB - fingerprinted_hashes_in_db
                 FINGERPRINTED_HASHES: song_hashes,
-                #how many hashes are temporal aligned
                 HASHES_MATCHED: hashes_matched,
                 # Percentage regarding hashes matched vs hashes from the input.
                 INPUT_CONFIDENCE: round(hashes_matched / queried_hashes, 2),
@@ -433,7 +452,7 @@ def get_noise_from_sound(signal,noise,SNR):
     
     return noise
 
-def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,final_results_arr):
+def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,len_songs):
     #print(songs_to_recognize)
     #print(recognized_song_names)
     #print(iteration)
@@ -450,30 +469,19 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
         if song_to_recognize == recognized_song_names[i]:
             dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),
             "song_start_time":times[i]["song_start_time"],"correct":1,"fingerprint_times":times[i]["fingerprint_times"],
-            "query_time":times[i]["query_time"],"align_time":times[i]["align_time"],"total_time":times[i]["total_time"]})
-            #,"final_results":final_results_arr[i]}) #final_results_arr[i] must be string to save here
+            "query_time":times[i]["query_time"],"align_time":times[i]["align_time"],"total_time":times[i]["total_time"],
+            "final_results":final_results_arr[i]})
         else:
             dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),"song_start_time":times[i]["song_start_time"],
             "correct":0,"fingerprint_times":times[i]["fingerprint_times"],"query_time":times[i]["query_time"],
-            "align_time":times[i]["align_time"],"total_time":times[i]["total_time"]})
-            #,"final_results":final_results_arr[i]})
-        """
-        #write csv with top results detail of file recognition
-        if len(final_results_arr[i]) > 0:
-            keys = final_results_arr[i][0].keys()
-            with open(song_to_recognize+'_results.csv', 'w', newline='')  as output_file:
-                dict_writer = csv.DictWriter(output_file, keys)
-                dict_writer.writeheader()
-                dict_writer.writerows(final_results_arr[i])
-        """
+            "align_time":times[i]["align_time"],"total_time":times[i]["total_time"],"final_results":final_results_arr[i]})
 
     csv_columns = ['file_name_played','file_name_result','song_start_time','correct','fingerprint_times','query_time','align_time',
-    'total_time']
-    #,'final_results']
+    'total_time','final_results']
     if add_noise:
-        csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds_SNR" + SNR + "_atSong" + str(iteration+1) + ".csv"
+        csv_name = "shazam_resultsES_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds_SNR" + SNR + "_atSong" + str(iteration+1) + ".csv"
     else:
-        csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds" + "_atSong" + str(iteration+1) + ".csv"
+        csv_name = "shazam_resultsES_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds" + "_atSong" + str(iteration+1) + ".csv"
     csv_file = csv_name
     try:
         with open(csv_file, 'w') as csvfile:
@@ -500,6 +508,7 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
     print(cm)
     print(cr)
     print("Accuracy score: ",asc)
+    #if iteration == len_songs-1:
     df = pd.DataFrame(cm)
     df.to_csv('CMSK_'+csv_name)
     df2 = pd.DataFrame(cr).transpose()
@@ -507,106 +516,103 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
     df3 = pd.DataFrame([asc])
     df3.to_csv('ASSK_'+csv_name)
 
-
 #MAIN
-songs_to_recognize = find_files("songs",["." + "mp3"])
-#songs_to_recognize = ["songs/000/000002.mp3"]
-songs_to_recognize = songs_to_recognize[0:100]
-#song = songs_to_recognize[0]
-recognized_song_names = []
-times = []
-final_results_arr = []
-add_noise = False
-SNR = 0
-db_cls = get_database(config.get("database_type", "mysql").lower())
-db = db_cls(**config.get("database", {}))
+testing_all = True
+if testing_all:
+    add_noise = False
+    SNR = 0
+    #songs_to_recognize = find_files("songsES",["." + "mp3"])
+    #songs_to_recognize = songs_to_recognize[0:100]
+    songs_to_recognize = ["songsES/000/000005.mp3"]
+    #songs_to_recognize = songs_to_recognize[0]
+    recognized_song_names = []
+    times = []
+    final_results_arr = []
+    db_cls = get_database(config.get("database_type", "elastic").lower())
+    db = db_cls(**config.get("database", {}))
+    len_songs = len(songs_to_recognize)
+    fourthpart = math.floor(len_songs/4)
+    medium = fourthpart * 2
+    three_fourths = fourthpart * 3
+    print("len_songs: ",len_songs)
+    for song_i, song_name in enumerate(songs_to_recognize):
+        print("Now loading: ",song_name)
+        print("Song {} of {}".format(song_i,len_songs))
+        if add_noise:
+            signal, sr = librosa.load(song_name)
+            #additive gaussian noise
+            #noise=get_white_noise(signal,SNR=10)
+            signal=np.interp(signal, (signal.min(), signal.max()), (-1, 1))
+            noise_file='city-traffic-sounds/city-traffic-sounds.mp3'
+            noise, sr = librosa.load(noise_file)
+            #print(len(noise))
+            noise=np.interp(noise, (noise.min(), noise.max()), (-1, 1))
+            if(len(noise)>len(signal)):
+                noise=noise[0:len(signal)]
+            noise=get_noise_from_sound(signal,noise,SNR)
+            signal=signal+noise
+            sf.write("signal_with_noise.wav", signal, sr)
+            song_to_play = AudioSegment.from_wav("signal_with_noise.wav")
+        else:
+            song_to_play = AudioSegment.from_mp3(song_name)
+        r_seconds = RECORD_SECONDS * 1000
+        duration_seconds = song_to_play.duration_seconds
+        #random start from 0 to duration of song - RECORD_SECONDS
+        song_start_time = randrange(0,int(duration_seconds)-RECORD_SECONDS)
+        print("start_time: ",song_start_time)
+        start_time = song_start_time * 1000
+        fragment_from_song = song_to_play[start_time:start_time+r_seconds]
+        #start playing song
+        t = threading.Thread(target=play_thread)
+        t.start()
+        q.put(fragment_from_song)
+        # start Recording
+        stream = audio.open(format=FORMAT, channels=CHANNELS,
+                        rate=RATE, input=True
+                        ,frames_per_buffer=CHUNK)
+        print ("recording...")
+        data_channels = [[] for i in range(CHANNELS)]
+        frames = []
+        for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+            data = stream.read(CHUNK,exception_on_overflow = False)
+            nums = np.fromstring(data, np.int16)
+            frames.append(data)
+            for c in range(CHANNELS):
+                data_channels[c].extend(nums[c::CHANNELS])
+        print("finished recording")
+        # stop Recording
+        stream.stop_stream()
+        stream.close()
+        #print(data_channels)
+        fingerprint_times = []
+        hashes = set()  # to remove possible duplicated fingerprints we built a set.
+        for channel in data_channels:
+            fingerprints, fingerprint_time = generate_fingerprints(channel, Fs=RATE)
+            fingerprint_times.append(fingerprint_time)
+            hashes |= set(fingerprints) #union
+        #print("fingerprint_times: ",fingerprint_times)
+        #print("hashes example: ",next(iter(hashes)))
+        print("len(hashes): ",len(hashes))
+        matches, dedup_hashes, query_time = find_matches(hashes)
+        t = time()
+        final_results = align_matches(matches, dedup_hashes, len(hashes))
+        align_time = time() - t
+        print("final_results: ",final_results)
+        print("fingerprint_times: ",np.sum(fingerprint_times)) #total time for fingerprinting all the segments
+        print("query_time: ",query_time)
+        print("align_time: ",align_time)
+        if final_results:
+            final_results_arr.append(str(final_results))
+            recognized_song_names.append(str(final_results[0]['song_name']))
+        else:
+            final_results_arr.append("No results")
+            recognized_song_names.append("No results")
+        fingerprint_times = np.sum(fingerprint_times)
+        total_time = fingerprint_times + query_time + align_time
+        times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
+        "align_time":align_time,"total_time":total_time})
+        #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+        if len_songs-1 == song_i:
+            generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,len_songs)
+    audio.terminate()
 
-len_songs = len(songs_to_recognize)
-fourthpart = math.floor(len_songs/4)
-medium = fourthpart * 2
-three_fourths = fourthpart * 3
-print("len_songs: ",len_songs)
-#print("fourthpart: ",fourthpart)
-#print("medium: ",medium)
-#print("three_fourths: ",three_fourths)
-for song_i, song_name in enumerate(songs_to_recognize):
-    print("Now loading: ",song_name)
-    if add_noise:
-        signal, sr = librosa.load(song_name)
-        #additive gaussian noise
-        #noise=get_white_noise(signal,SNR=10)
-        signal=np.interp(signal, (signal.min(), signal.max()), (-1, 1))
-        noise_file='city-traffic-sounds/city-traffic-sounds.mp3'
-        noise, sr = librosa.load(noise_file)
-        #print(len(noise))
-        noise=np.interp(noise, (noise.min(), noise.max()), (-1, 1))
-        if(len(noise)>len(signal)):
-            noise=noise[0:len(signal)]
-        noise=get_noise_from_sound(signal,noise,SNR)
-        signal=signal+noise
-        sf.write("signal_with_noise.wav", signal, sr)
-        song_to_play = AudioSegment.from_wav("signal_with_noise.wav")
-    else:
-        song_to_play = AudioSegment.from_mp3(song_name)
-    r_seconds = RECORD_SECONDS * 1000
-    duration_seconds = song_to_play.duration_seconds
-    #random start from 0 to duration of song - RECORD_SECONDS
-    song_start_time = randrange(0,int(duration_seconds)-RECORD_SECONDS)
-    print("start_time: ",song_start_time)
-    start_time = song_start_time * 1000
-    fragment_from_song = song_to_play[start_time:start_time+r_seconds]
-    print("Song {} of {}".format(song_i,len_songs))
-    #start playing song
-    t = threading.Thread(target=play_thread)
-    t.start()
-    q.put(fragment_from_song)
-    # start Recording
-    stream = audio.open(format=FORMAT, channels=CHANNELS,
-                    rate=RATE, input=True
-                    ,frames_per_buffer=CHUNK)
-    print ("recording...")
-    data_channels = [[] for i in range(CHANNELS)]
-    frames = []
-    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-        data = stream.read(CHUNK,exception_on_overflow = False)
-        nums = np.fromstring(data, np.int16)
-        frames.append(data)
-        for c in range(CHANNELS):
-            data_channels[c].extend(nums[c::CHANNELS])
-    print("finished recording")
-    # stop Recording
-    stream.stop_stream()
-    stream.close()
-    #print(data_channels)
-    fingerprint_times = []
-    hashes = set()  # to remove possible duplicated fingerprints we built a set.
-    for channel in data_channels:
-        fingerprints, fingerprint_time = generate_fingerprints(channel, Fs=RATE)
-        fingerprint_times.append(fingerprint_time)
-        hashes |= set(fingerprints) #union
-    #print("fingerprint_times: ",fingerprint_times)
-    #print("hashes: ",hashes)
-    matches, dedup_hashes, query_time = find_matches(hashes)
-    t = time()
-    final_results = align_matches(matches, dedup_hashes, len(hashes))
-    align_time = time() - t
-
-    print("final_results: ",final_results)
-    print("fingerprint_time: ",np.sum(fingerprint_times)) #total time for fingerprinting all the segments
-    print("query_time: ",query_time)
-    print("align_time: ",align_time)
-    if final_results:
-        final_results_arr.append(final_results)
-        recognized_song_names.append(str(final_results[0]['song_name']))
-    else:
-        #final_results_arr.append("No results")
-        final_results_arr.append([])
-        recognized_song_names.append("No results")
-    fingerprint_times = np.sum(fingerprint_times)
-    total_time = fingerprint_times + query_time + align_time
-    times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
-    "align_time":align_time,"total_time":total_time})
-    #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
-    if len_songs-1 == song_i:
-        generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,final_results_arr)
-audio.terminate()
