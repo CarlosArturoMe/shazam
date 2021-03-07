@@ -34,69 +34,6 @@ from sklearn.metrics import confusion_matrix, classification_report, accuracy_sc
 import pandas as pd
 
 RECORD_SECONDS = 15
-# Number of results being returned for file recognition
-TOPN = 5
-FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100 #Hz, samples / second
-CHUNK = 8192
-audio = pyaudio.PyAudio()
-WAVE_OUTPUT_FILENAME = "file.wav"
-DEFAULT_WINDOW_SIZE = 4096  #The number of data points used in each block for the FFT
-DEFAULT_OVERLAP_RATIO = 0.5
-DEFAULT_FAN_VALUE = 5
-DEFAULT_AMP_MIN = 10 #DB
-CONNECTIVITY_MASK = 2
-PEAK_NEIGHBORHOOD_SIZE = 10
-PEAK_SORT = True
-MIN_HASH_TIME_DELTA = 0
-MAX_HASH_TIME_DELTA = 200
-FINGERPRINT_REDUCTION = 20
-DEFAULT_FS = 44100
-
-FIELD_HASH = 'hash'
-FIELD_SONG_ID = 'song_id'
-FIELD_OFFSET = 'offset'
-FINGERPRINTS_TABLENAME = "fingerprints"
-SONG_ID = "song_id"
-SONG_NAME = 'song_name'
-FIELD_TOTAL_HASHES = 'total_hashes'
-# Hashes generated from the input.
-INPUT_HASHES = 'input_total_hashes'
-# Percentage regarding hashes matched vs hashes from the input.
-INPUT_CONFIDENCE = 'input_confidence'
-# Hashes fingerprinted in the db.
-FINGERPRINTED_HASHES = 'fingerprinted_hashes_in_db'
-HASHES_MATCHED = 'hashes_matched_in_input'
-# Percentage regarding hashes matched vs hashes fingerprinted in the db.
-FINGERPRINTED_CONFIDENCE = 'fingerprinted_confidence'
-OFFSET = 'offset'
-OFFSET_SECS = 'offset_seconds'
-FIELD_FILE_SHA1 = 'file_sha1'
-
-SELECT_MULTIPLE = f"""
-        SELECT HEX(`{FIELD_HASH}`), `{FIELD_SONG_ID}`, `{FIELD_OFFSET}`
-        FROM `{FINGERPRINTS_TABLENAME}`
-        WHERE `{FIELD_HASH}` IN (%s);
-    """
-IN_MATCH = f"UNHEX(%s)"
-
-
-# DATABASE CLASS INSTANCES:
-DATABASES = {
-    'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
-}
-
-config = {
-    "database": {
-        "host": "127.0.0.1",
-        "user": "root",
-        "password": "12345678",
-        "database": "music_recognition"
-    },
-    "database_type": "mysql"
-}
 
 def find_files(path: str, extensions):
     """
@@ -118,7 +55,7 @@ def find_files(path: str, extensions):
     return results
 
 #MAIN
-songs_to_recognize = find_files("songs/041",["." + "mp3"])
+songs_to_recognize = find_files("songs/009",["." + "mp3"])
 songs_to_delete = []
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
@@ -128,12 +65,14 @@ for song_i, song_name in enumerate(songs_to_recognize):
         print("Cant play: ",song_name)
         songs_to_delete.append(song_name)
     duration_seconds = song_to_play.duration_seconds
-    r_seconds = RECORD_SECONDS * 1000
-    #random start from 5s (0) to duration of song - RECORD_SECONDS
-    if int(duration_seconds) - RECORD_SECONDS < 0:
-        print("Not enough duration of song: ",duration_seconds)
+    if int(duration_seconds) > 1800:
+        print("Duration of song: ",duration_seconds)
+        print("song_name: ",song_name)
         songs_to_delete.append([song_name,duration_seconds])
-        os.remove(song_name)
+        #os.remove(song_name)
+        name = os.path.splitext(os.path.basename(song_name))[0]
+        os.rename(song_name, "/home/labcic/Documentos/fma_full/"+name)
 print("len(songs_to_delete): ",len(songs_to_delete))
-df = pd.DataFrame(songs_to_delete, columns=["song_name","duration"])
-df.to_csv('songs_deleted.csv', index=False)
+if len(songs_to_delete) > 0:
+    df = pd.DataFrame(np.array(songs_to_delete), columns=["song_name","duration"])
+    df.to_csv('songs_deleted.csv', index=False)
