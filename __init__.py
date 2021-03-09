@@ -17,6 +17,8 @@ from scipy.ndimage.filters import maximum_filter
 from operator import itemgetter
 import hashlib
 import matplotlib.pyplot as plt
+from time import time
+
 
 # DATABASE CLASS INSTANCES:
 DATABASES = {
@@ -356,6 +358,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
     # Loop till we have all of them
     while True:
         try:
+            t = time()
             song_name, hashes, file_hash = next(iterator)
             print("song_name after iterator: ",song_name)
             #print("hashes: ",hashes)
@@ -372,8 +375,13 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             traceback.print_exc(file=sys.stdout)
         else:
             print("enter in else of song: ",song_name)
+            hashes_time = time() -t
+            print("generate hashes_time: ",hashes_time)
             sid = db.insert_song(song_name, file_hash, len(hashes))
+            th = time()
             db.insert_hashes(sid, hashes)
+            insert_time = time() -t
+            print("Insert hashes in bd time: ",insert_time)
             db.set_song_fingerprinted(sid)
             songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
     pool.close()
