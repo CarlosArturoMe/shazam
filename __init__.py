@@ -348,11 +348,12 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             continue
         filenames_to_fingerprint.append(filename)
 
-    # Prepare _fingerprint_worker input
+    #Prepare _fingerprint_worker input
     #print([limit] * len(filenames_to_fingerprint))
     worker_input = list(zip(filenames_to_fingerprint, [limit] * len(filenames_to_fingerprint)))
-    print("worker_input: ",worker_input)
-    # Send off our tasks; returns iterable that yield the result of function passed
+    worker_len = len(worker_input)
+    worker_count = 0
+    #Send off our tasks; returns iterable that yield the result of function passed
     iterator = pool.imap_unordered(_fingerprint_worker, worker_input)
     
     # Loop till we have all of them
@@ -360,7 +361,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
         try:
             t = time()
             song_name, hashes, file_hash = next(iterator)
-            print("song_name after iterator: ",song_name)
+            print("song_name to fingerprint: ",song_name)
             #print("hashes: ",hashes)
             #print("file_hash: ",file_hash)
         except multiprocessing.TimeoutError:
@@ -374,7 +375,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             # Print traceback because we can't reraise it here
             traceback.print_exc(file=sys.stdout)
         else:
-            print("enter in else of song: ",song_name)
+            print("to generate hashes of song: ",song_name)
             hashes_time = time() -t
             print("generate hashes_time: ",hashes_time)
             sid = db.insert_song(song_name, file_hash, len(hashes))
@@ -383,6 +384,8 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             insert_time = time() -t
             print("Insert hashes in bd time: ",insert_time)
             db.set_song_fingerprinted(sid)
+            worker_count +=1
+            print("Finish saving fingerprints in BD of song {} ({} of {})".format(song_name,worker_count,worker_len))
             songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
     pool.close()
     pool.join() 
