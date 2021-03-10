@@ -55,17 +55,18 @@ def find_files(path: str, extensions):
     return results
 
 #MAIN
-songs_to_recognize = find_files("songs/009",["." + "mp3"])
+songs_to_recognize = find_files("songs/027",["." + "mp3"])
 songs_to_delete = []
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
+    duration_seconds = 0
     try:
         song_to_play = AudioSegment.from_mp3(song_name)
+        duration_seconds = song_to_play.duration_seconds
     except:
         print("Cant play: ",song_name)
-        songs_to_delete.append(song_name)
-    duration_seconds = song_to_play.duration_seconds
-    if int(duration_seconds) > 1800:
+        songs_to_delete.append([song_name,0])
+    if int(duration_seconds) > 1200:
         print("Duration of song: ",duration_seconds)
         print("song_name: ",song_name)
         songs_to_delete.append([song_name,duration_seconds])

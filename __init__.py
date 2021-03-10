@@ -273,11 +273,12 @@ def _fingerprint_worker(arguments):
     try:
         file_name, limit = arguments
     except ValueError:
+        print("Error in _fingerprint_worker")
         pass
     
     song_name, extension = os.path.splitext(os.path.basename(file_name))
 
-    fingerprints, file_hash = get_file_fingerprints(file_name, limit, print_output=False)
+    fingerprints, file_hash = get_file_fingerprints(file_name, limit, print_output=True)
 
     return song_name, fingerprints, file_hash
 
@@ -335,7 +336,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
         nprocesses = 1
     else:
         nprocesses = 1 if nprocesses <= 0 else nprocesses
-    #print("nprocesses: ",nprocesses)
+    print("nprocesses: ",nprocesses)
     pool = multiprocessing.Pool(nprocesses)
 
     filenames_to_fingerprint = []
@@ -349,7 +350,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
     # Prepare _fingerprint_worker input
     #print([limit] * len(filenames_to_fingerprint))
     worker_input = list(zip(filenames_to_fingerprint, [limit] * len(filenames_to_fingerprint)))
-    print("worker_input: ",worker_input)
+    #print("worker_input: ",worker_input)
     # Send off our tasks; returns iterable that yield the result of function passed
     iterator = pool.imap_unordered(_fingerprint_worker, worker_input)
     
@@ -371,7 +372,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             # Print traceback because we can't reraise it here
             traceback.print_exc(file=sys.stdout)
         else:
-            print("enter in else of song: ",song_name)
+            print("finish hashes of song: ",song_name)
             sid = db.insert_song(song_name, file_hash, len(hashes))
             db.insert_hashes(sid, hashes)
             db.set_song_fingerprinted(sid)
@@ -416,4 +417,4 @@ if __name__ == '__main__':
     if limit == -1:  # for JSON compatibility
         limit = None
     songhashes_set = load_fingerprinted_audio_hashes(set())
-    fingerprint_directory("song", ["." + "mp3"], 4,songhashes_set)
+    fingerprint_directory("songsES", ["." + "mp3"], 4,songhashes_set)
