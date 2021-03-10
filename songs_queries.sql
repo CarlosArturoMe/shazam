@@ -1,8 +1,9 @@
 SELECT * FROM music_recognition.songs;
 SELECT COUNT(*) FROM music_recognition.songs;
 SELECT * FROM music_recognition.songs where song_name like '072059';
+SELECT * FROM music_recognition.songs where song_name like '110268__nandoo1__nandoo-messany-flying-over-the-top-trancy';
 
-DELETE FROM music_recognition.songs where song_id = 098619;
+DELETE FROM music_recognition.songs where song_id = 8002;
 DELETE FROM music_recognition.songs where song_id = 3523;
 
 describe music_recognition.fingerprints;
