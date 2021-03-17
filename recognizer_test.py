@@ -290,6 +290,7 @@ def return_matches(hashes, batch_size: int = 1000):
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
             #print("matches_count: ",matches_count)
+        #print("Dedup hashes: ",dedup_hashes)
         return results, dedup_hashes
 
 def find_matches(hashes):
