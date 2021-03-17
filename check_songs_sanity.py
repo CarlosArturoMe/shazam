@@ -55,7 +55,7 @@ def find_files(path: str, extensions):
     return results
 
 #MAIN
-songs_to_recognize = find_files("songs/027",["." + "mp3"])
+songs_to_recognize = find_files("songs/016",["." + "mp3"])
 songs_to_delete = []
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
