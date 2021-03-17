@@ -355,7 +355,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
     worker_count = 0
     #Send off our tasks; returns iterable that yield the result of function passed
     iterator = pool.imap_unordered(_fingerprint_worker, worker_input)
-    
+    start_t = time()
     # Loop till we have all of them
     while True:
         try:
@@ -389,6 +389,8 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
     pool.close()
     pool.join() 
+    end_t = start_t - time()
+    print("Total time to load {} songs: {}".format(worker_len,end_t))
     """
     for obj in worker_input:
         song_name, hashes, file_hash = _fingerprint_worker(obj)
