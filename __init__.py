@@ -381,7 +381,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             sid = db.insert_song(song_name, file_hash, len(hashes))
             th = time()
             db.insert_hashes(sid, hashes)
-            insert_time = time() -t
+            insert_time = time() - th
             print("Insert hashes in bd time: ",insert_time)
             db.set_song_fingerprinted(sid)
             worker_count +=1
@@ -389,7 +389,7 @@ def fingerprint_directory(path: str, extensions: str, nprocesses: int = None, so
             songhashes_set = load_fingerprinted_audio_hashes(songhashes_set)
     pool.close()
     pool.join() 
-    end_t = start_t - time()
+    end_t = time() - start_t
     print("Total time to load {} songs: {}".format(worker_len,end_t))
     """
     for obj in worker_input:
@@ -429,5 +429,4 @@ if __name__ == '__main__':
     if limit == -1:  # for JSON compatibility
         limit = None
     songhashes_set = load_fingerprinted_audio_hashes(set())
-    
     fingerprint_directory("song", ["." + "mp3"], 4,songhashes_set)
