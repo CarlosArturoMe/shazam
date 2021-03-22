@@ -1,46 +1,17 @@
-import pyaudio
-import wave
-import librosa
 import sys
 import numpy as np
 np.set_printoptions(threshold=sys.maxsize)
 import matplotlib.pyplot as plt
-import librosa.display
 import csv
-from time import time
-import matplotlib.mlab as mlab
-from scipy.ndimage.morphology import (binary_erosion,
-                                      generate_binary_structure,
-                                      iterate_structure)
-from scipy.ndimage.filters import maximum_filter
-import hashlib
-from operator import itemgetter
-from itertools import groupby
 import importlib
-from pydub import AudioSegment
-from pydub.playback import play
-import soundfile as sf
-import threading
-import os
-import fnmatch
-from time import sleep
-import queue
-q = queue.Queue()
-from random import randrange
-import math
-import datetime
-import re
-from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
 RECORD_SECONDS = 5
 # Number of results being returned for file recognition
 TOPN = 5
-FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
 CHUNK = 8192
-audio = pyaudio.PyAudio()
 WAVE_OUTPUT_FILENAME = "file.wav"
 DEFAULT_WINDOW_SIZE = 4096  #The number of data points used in each block for the FFT
 DEFAULT_OVERLAP_RATIO = 0.5
@@ -125,24 +96,45 @@ def get_database(database_type: str = "mysql"):
 db_cls = get_database(config.get("database_type", "mysql").lower())
 db = db_cls(**config.get("database", {}))
 
-#TOP 25 songs with more hashes
+#TOP 10 songs with more hashes
 SELECT_HASHES_ASC_SONGS = f"""
         SELECT
            `{FIELD_SONGNAME}`
         ,   `{FIELD_TOTAL_HASHES}`
         FROM `{SONGS_TABLENAME}`
         ORDER BY `{FIELD_TOTAL_HASHES}` ASC
-        LIMIT 25;
+        LIMIT 10;
     """
+
+SELECT_HASHES_DESC_SONGS = f"""
+        SELECT
+           `{FIELD_SONGNAME}`
+        ,   `{FIELD_TOTAL_HASHES}`
+        FROM `{SONGS_TABLENAME}`
+        ORDER BY `{FIELD_TOTAL_HASHES}` DESC
+        LIMIT 10;
+    """
+
+SELECT_SONGS_HASHES = f"""
+        SELECT
+           `{FIELD_SONGNAME}`
+        ,   `{FIELD_TOTAL_HASHES}`
+        FROM `{SONGS_TABLENAME}`
+        ORDER BY `{FIELD_TOTAL_HASHES}` ASC
+    """
+
 with db.cursor(dictionary=True) as cur:
-    cur.execute(SELECT_HASHES_ASC_SONGS)
+    cur.execute(SELECT_SONGS_HASHES)
     response = list(cur)
 #print(response)
-songs_arr = []
-total_hashes_arr = []
-for song in response:
-    songs_arr.append(song[0]+".mp3")
-    total_hashes_arr.append(song[1])
+
+#songs_arr = []
+#total_hashes_arr = []
+#for song in response:
+    #songs_arr.append(song[0]+".mp3")
+    #total_hashes_arr.append(song[1])
+
+"""    
 fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.bar(songs_arr, total_hashes_arr) #align='center')
@@ -152,11 +144,10 @@ plt.setp(ax.get_xticklabels(), rotation='vertical', fontsize=6)
 ax.set_xlabel('Canciones')
 ax.set_ylabel('Total de hashes')
 plt.show()
-
-
-#fig, ax = plt.subplots()
-#ax.imshow(arr2D)
-#ax.scatter(times_filter, freqs_filter)
-#ax.set_title("Spectrogram")
-#plt.gca().invert_yaxis()
-#plt.show()
+"""
+#save to csv
+with open('song_hashes.csv', 'w',) as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(['Nombre', 'Cantidad de hashes'])
+    for song in response:
+        writer.writerow([song[0]+".mp3", song[1]])
