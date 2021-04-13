@@ -33,9 +33,11 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 5
+RECORD_SECONDS = 15
 # Number of results being returned for file recognition
 TOPN = 3
+ADD_NOISE = True
+SNR = -15
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
@@ -475,7 +477,7 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
 
     csv_columns = ['file_name_played','file_name_result','song_start_time','correct','fingerprint_times','query_time','align_time',
     'total_time','final_results']
-    if add_noise:
+    if ADD_NOISE:
         csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds_" + str(SNR) +"SNR_atSong" + str(iteration+1) + ".csv"
     else:
         csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds" + "_atSong" + str(iteration+1) + ".csv"
@@ -528,11 +530,10 @@ print("songs_to_recognize: ",songs_to_recognize)
 #        print("songs_to_recognize[i]:",songs_to_recognize[i])
 #        print("songs_to_recognize2[i]: ",songs_to_recognize2[i])
 
+
 recognized_song_names = []
 times = []
 final_results_arr = []
-add_noise = True
-SNR = 0
 db_cls = get_database(config.get("database_type", "mysql").lower())
 db = db_cls(**config.get("database", {}))
 len_songs = len(songs_to_recognize)
@@ -540,9 +541,6 @@ fourthpart = math.floor(len_songs/4)
 medium = fourthpart * 2
 three_fourths = fourthpart * 3
 print("len songs_to_recognize: ",len_songs)
-#print("fourthpart: ",fourthpart)
-#print("medium: ",medium)
-#print("three_fourths: ",three_fourths)
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
     song_to_play = AudioSegment.from_mp3(song_name)
@@ -553,7 +551,7 @@ for song_i, song_name in enumerate(songs_to_recognize):
     print("start_time: ",song_start_time)
     start_time = song_start_time * 1000
     fragment_from_song = song_to_play[start_time:start_time+r_seconds]
-    if add_noise:
+    if ADD_NOISE:
         fragment_from_song.export("fragment.mp3", format="mp3")
         signal, sr = librosa.load("fragment.mp3")
         #additive gaussian noise
