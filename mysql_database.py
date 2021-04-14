@@ -40,7 +40,7 @@ class MySQLDatabase():
         ,   `date_modified` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
         ,   CONSTRAINT `pk_{SONGS_TABLENAME}_{FIELD_SONG_ID}` PRIMARY KEY (`{FIELD_SONG_ID}`)
         ,   CONSTRAINT `uq_{SONGS_TABLENAME}_{FIELD_SONG_ID}` UNIQUE KEY (`{FIELD_SONG_ID}`)
-        ) ENGINE=INNODB;
+        ) ENGINE=MEMORY;
     """
 
     CREATE_FINGERPRINTS_TABLE = f"""
@@ -48,15 +48,16 @@ class MySQLDatabase():
             `{FIELD_HASH}` BINARY(10) NOT NULL
         ,   `{FIELD_SONG_ID}` MEDIUMINT UNSIGNED NOT NULL
         ,   `{FIELD_OFFSET}` INT UNSIGNED NOT NULL
-        ,   `date_created` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ,   `date_modified` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ,   INDEX `ix_{FINGERPRINTS_TABLENAME}_{FIELD_HASH}` (`{FIELD_HASH}`)
+        ,   INDEX `ix_{FINGERPRINTS_TABLENAME}_{FIELD_HASH}` (`{FIELD_HASH}`) USING HASH
         ,   CONSTRAINT `uq_{FINGERPRINTS_TABLENAME}_{FIELD_SONG_ID}_{FIELD_OFFSET}_{FIELD_HASH}`
                 UNIQUE KEY  (`{FIELD_SONG_ID}`, `{FIELD_OFFSET}`, `{FIELD_HASH}`)
         ,   CONSTRAINT `fk_{FINGERPRINTS_TABLENAME}_{FIELD_SONG_ID}` FOREIGN KEY (`{FIELD_SONG_ID}`)
                 REFERENCES `{SONGS_TABLENAME}`(`{FIELD_SONG_ID}`) ON DELETE CASCADE
-    ) ENGINE=INNODB;
+    ) ENGINE=MEMORY;
     """
+
+    SET_TMP_TABLE_SIZE = "SET tmp_table_size = 1024 * 1024 * 1024 * 35;"
+    SET_MAX_HEAP_SIZE = "SET max_heap_table_size = 1024 * 1024 * 1024 * 35;"
 
     # INSERTS (IGNORES DUPLICATES)
     INSERT_FINGERPRINT = f"""
@@ -144,6 +145,8 @@ class MySQLDatabase():
         Called on creation or shortly afterwards.
         """
         with self.cursor() as cur:
+            cur.execute(self.SET_TMP_TABLE_SIZE)
+            cur.execute(self.SET_MAX_HEAP_SIZE)
             cur.execute(self.CREATE_SONGS_TABLE)
             cur.execute(self.CREATE_FINGERPRINTS_TABLE)
             cur.execute(self.DELETE_UNFINGERPRINTED)
