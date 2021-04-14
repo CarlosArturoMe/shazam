@@ -510,9 +510,9 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
 
 
 #MAIN
-songs_to_recognize = find_files("songs",["." + "mp3"])
+songs_to_recognize = find_files("songsES/000",["." + "mp3"])
 #songs_to_recognize = ["songs/155/155066.mp3"]
-#songs_to_recognize = songs_to_recognize[0:100]
+songs_to_recognize = songs_to_recognize[0:2]
 #song = songs_to_recognize[0]
 recognized_song_names = []
 times = []
@@ -608,6 +608,6 @@ for song_i, song_name in enumerate(songs_to_recognize):
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
     "align_time":align_time,"total_time":total_time})
     #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
-    if len_songs-1 == song_i:
-        generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,final_results_arr)
+    #if len_songs-1 == song_i:
+    #    generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,final_results_arr)
 audio.terminate()
