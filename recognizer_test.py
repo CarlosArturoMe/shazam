@@ -33,11 +33,11 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 15
+RECORD_SECONDS = 10
 # Number of results being returned for file recognition
 TOPN = 3
 ADD_NOISE = True
-SNR = -15
+SNR = 15
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
