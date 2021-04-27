@@ -23,17 +23,16 @@ from time import time
 # DATABASE CLASS INSTANCES:
 DATABASES = {
     'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
+    'postgres': ("postgres_database", "PostgreSQLDatabase")
 }
 
 config = {
     "database": {
         "host": "127.0.0.1",
-        "user": "root",
-        "password": "12345678",
+        "user": "postgres",
         "database": "music_recognition"
     },
-    "database_type": "mysql"
+    "database_type": "postgres"
 }
 
 #FIELD_FILE_SHA1 = 'file_sha1'
@@ -429,4 +428,4 @@ if __name__ == '__main__':
     if limit == -1:  # for JSON compatibility
         limit = None
     songhashes_set = load_fingerprinted_audio_hashes(set())
-    fingerprint_directory("/Volumes/CarlosHD/fma_full/000", ["." + "mp3"], 4,songhashes_set)
+    fingerprint_directory("song", ["." + "mp3"], 4,songhashes_set)

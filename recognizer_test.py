@@ -33,10 +33,10 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 10
+RECORD_SECONDS = 11
 # Number of results being returned for file recognition
 TOPN = 3
-ADD_NOISE = True
+ADD_NOISE = False
 SNR = 15
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
@@ -77,27 +77,26 @@ OFFSET_SECS = 'offset_seconds'
 FIELD_FILE_SHA1 = 'file_sha1'
 
 SELECT_MULTIPLE = f"""
-        SELECT HEX(`{FIELD_HASH}`), `{FIELD_SONG_ID}`, `{FIELD_OFFSET}`
-        FROM `{FINGERPRINTS_TABLENAME}`
-        WHERE `{FIELD_HASH}` IN (%s);
+        SELECT upper(encode("{FIELD_HASH}", 'hex')), "{FIELD_SONG_ID}", "{FIELD_OFFSET}"
+        FROM "{FINGERPRINTS_TABLENAME}"
+        WHERE "{FIELD_HASH}" IN (%s);
     """
-IN_MATCH = f"UNHEX(%s)"
+IN_MATCH = f"decode(%s, 'hex')"
 
 
 # DATABASE CLASS INSTANCES:
 DATABASES = {
     'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
+    'postgres': ("postgres_database", "PostgreSQLDatabase")
 }
 
 config = {
     "database": {
         "host": "127.0.0.1",
-        "user": "root",
-        "password": "12345678",
+        "user": "postgres",
         "database": "music_recognition"
     },
-    "database_type": "mysql"
+    "database_type": "postgres"
 }
 
 def generate_hashes(peaks, fan_value: int = DEFAULT_FAN_VALUE):
@@ -516,9 +515,9 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
 
 
 #MAIN
-songs_to_recognize = find_files("songsES/000",["." + "mp3"])
+songs_to_recognize = find_files("song",["." + "mp3"])
 #songs_to_recognize = ["songs/155/155066.mp3"]
-songs_to_recognize = songs_to_recognize[0:500]
+#songs_to_recognize = songs_to_recognize[0:500]
 print("songs_to_recognize: ",songs_to_recognize)
 #song = songs_to_recognize[0]
 #songs_to_recognize = ['/Volumes/CarlosHD/fma_full/000/000762.mp3', '/Volumes/CarlosHD/fma_full/000/000776.mp3', '/Volumes/CarlosHD/fma_full/000/000010.mp3', '/Volumes/CarlosHD/fma_full/000/000992.mp3', '/Volumes/CarlosHD/fma_full/000/000560.mp3', '/Volumes/CarlosHD/fma_full/000/000206.mp3', '/Volumes/CarlosHD/fma_full/000/000212.mp3', '/Volumes/CarlosHD/fma_full/000/000574.mp3', '/Volumes/CarlosHD/fma_full/000/000548.mp3', '/Volumes/CarlosHD/fma_full/000/000414.mp3', '/Volumes/CarlosHD/fma_full/000/000366.mp3', '/Volumes/CarlosHD/fma_full/000/000400.mp3', '/Volumes/CarlosHD/fma_full/000/000428.mp3', '/Volumes/CarlosHD/fma_full/000/000819.mp3', '/Volumes/CarlosHD/fma_full/000/000831.mp3', '/Volumes/CarlosHD/fma_full/000/000825.mp3', '/Volumes/CarlosHD/fma_full/000/000602.mp3', '/Volumes/CarlosHD/fma_full/000/000164.mp3', '/Volumes/CarlosHD/fma_full/000/000158.mp3', '/Volumes/CarlosHD/fma_full/000/000159.mp3', '/Volumes/CarlosHD/fma_full/000/000603.mp3', '/Volumes/CarlosHD/fma_full/000/000165.mp3', '/Volumes/CarlosHD/fma_full/000/000171.mp3', '/Volumes/CarlosHD/fma_full/000/000617.mp3', '/Volumes/CarlosHD/fma_full/000/000824.mp3', '/Volumes/CarlosHD/fma_full/000/000830.mp3', '/Volumes/CarlosHD/fma_full/000/000429.mp3', '/Volumes/CarlosHD/fma_full/000/000367.mp3', '/Volumes/CarlosHD/fma_full/000/000398.mp3', '/Volumes/CarlosHD/fma_full/000/000549.mp3', '/Volumes/CarlosHD/fma_full/000/000213.mp3', '/Volumes/CarlosHD/fma_full/000/000575.mp3', '/Volumes/CarlosHD/fma_full/000/000561.mp3', '/Volumes/CarlosHD/fma_full/000/000207.mp3', '/Volumes/CarlosHD/fma_full/000/000993.mp3', '/Volumes/CarlosHD/fma_full/000/000777.mp3', '/Volumes/CarlosHD/fma_full/000/000005.mp3', '/Volumes/CarlosHD/fma_full/000/000763.mp3', '/Volumes/CarlosHD/fma_full/000/000950.mp3', '/Volumes/CarlosHD/fma_full/000/000788.mp3', '/Volumes/CarlosHD/fma_full/000/000944.mp3', '/Volumes/CarlosHD/fma_full/000/000978.mp3', '/Volumes/CarlosHD/fma_full/000/000952.mp3', '/Volumes/CarlosHD/fma_full/000/000946.mp3', '/Volumes/CarlosHD/fma_full/000/000775.mp3', '/Volumes/CarlosHD/fma_full/000/000761.mp3', '/Volumes/CarlosHD/fma_full/000/000991.mp3', '/Volumes/CarlosHD/fma_full/000/000749.mp3', '/Volumes/CarlosHD/fma_full/000/000588.mp3', '/Volumes/CarlosHD/fma_full/000/000577.mp3', '/Volumes/CarlosHD/fma_full/000/000211.mp3', '/Volumes/CarlosHD/fma_full/000/000205.mp3', '/Volumes/CarlosHD/fma_full/000/000563.mp3', '/Volumes/CarlosHD/fma_full/000/000403.mp3', '/Volumes/CarlosHD/fma_full/000/000365.mp3', '/Volumes/CarlosHD/fma_full/000/000371.mp3', '/Volumes/CarlosHD/fma_full/000/000417.mp3', '/Volumes/CarlosHD/fma_full/000/000359.mp3', '/Volumes/CarlosHD/fma_full/000/000198.mp3', '/Volumes/CarlosHD/fma_full/000/000826.mp3', '/Volumes/CarlosHD/fma_full/000/000832.mp3', '/Volumes/CarlosHD/fma_full/000/000167.mp3', '/Volumes/CarlosHD/fma_full/000/000601.mp3', '/Volumes/CarlosHD/fma_full/000/000615.mp3', '/Volumes/CarlosHD/fma_full/000/000173.mp3', '/Volumes/CarlosHD/fma_full/000/000629.mp3', '/Volumes/CarlosHD/fma_full/000/000628.mp3', '/Volumes/CarlosHD/fma_full/000/000166.mp3', '/Volumes/CarlosHD/fma_full/000/000833.mp3', '/Volumes/CarlosHD/fma_full/000/000199.mp3', '/Volumes/CarlosHD/fma_full/000/000827.mp3', '/Volumes/CarlosHD/fma_full/000/000358.mp3', '/Volumes/CarlosHD/fma_full/000/000370.mp3', '/Volumes/CarlosHD/fma_full/000/000416.mp3', '/Volumes/CarlosHD/fma_full/000/000402.mp3', '/Volumes/CarlosHD/fma_full/000/000364.mp3', '/Volumes/CarlosHD/fma_full/000/000238.mp3', '/Volumes/CarlosHD/fma_full/000/000204.mp3', '/Volumes/CarlosHD/fma_full/000/000562.mp3', '/Volumes/CarlosHD/fma_full/000/000576.mp3', '/Volumes/CarlosHD/fma_full/000/000210.mp3', '/Volumes/CarlosHD/fma_full/000/000589.mp3', '/Volumes/CarlosHD/fma_full/000/000984.mp3', '/Volumes/CarlosHD/fma_full/000/000760.mp3', '/Volumes/CarlosHD/fma_full/000/000774.mp3', '/Volumes/CarlosHD/fma_full/000/000947.mp3', '/Volumes/CarlosHD/fma_full/000/000943.mp3', '/Volumes/CarlosHD/fma_full/000/000758.mp3', '/Volumes/CarlosHD/fma_full/000/000770.mp3', '/Volumes/CarlosHD/fma_full/000/000002.mp3', '/Volumes/CarlosHD/fma_full/000/000764.mp3', '/Volumes/CarlosHD/fma_full/000/000228.mp3', '/Volumes/CarlosHD/fma_full/000/000572.mp3', '/Volumes/CarlosHD/fma_full/000/000566.mp3', '/Volumes/CarlosHD/fma_full/000/000200.mp3', '/Volumes/CarlosHD/fma_full/000/000348.mp3', '/Volumes/CarlosHD/fma_full/000/000360.mp3', '/Volumes/CarlosHD/fma_full/000/000406.mp3', '/Volumes/CarlosHD/fma_full/000/000823.mp3', '/Volumes/CarlosHD/fma_full/000/000189.mp3', '/Volumes/CarlosHD/fma_full/000/000837.mp3', '/Volumes/CarlosHD/fma_full/000/000638.mp3', '/Volumes/CarlosHD/fma_full/000/000604.mp3', '/Volumes/CarlosHD/fma_full/000/000162.mp3', '/Volumes/CarlosHD/fma_full/000/000610.mp3', '/Volumes/CarlosHD/fma_full/000/000177.mp3', '/Volumes/CarlosHD/fma_full/000/000611.mp3', '/Volumes/CarlosHD/fma_full/000/000605.mp3', '/Volumes/CarlosHD/fma_full/000/000163.mp3', '/Volumes/CarlosHD/fma_full/000/000639.mp3', '/Volumes/CarlosHD/fma_full/000/000188.mp3', '/Volumes/CarlosHD/fma_full/000/000836.mp3', '/Volumes/CarlosHD/fma_full/000/000822.mp3', '/Volumes/CarlosHD/fma_full/000/000361.mp3', '/Volumes/CarlosHD/fma_full/000/000407.mp3', '/Volumes/CarlosHD/fma_full/000/000349.mp3', '/Volumes/CarlosHD/fma_full/000/000567.mp3', '/Volumes/CarlosHD/fma_full/000/000201.mp3', '/Volumes/CarlosHD/fma_full/000/000573.mp3', '/Volumes/CarlosHD/fma_full/000/000003.mp3', '/Volumes/CarlosHD/fma_full/000/000765.mp3', '/Volumes/CarlosHD/fma_full/000/000771.mp3', '/Volumes/CarlosHD/fma_full/000/000759.mp3', '/Volumes/CarlosHD/fma_full/000/000940.mp3', '/Volumes/CarlosHD/fma_full/000/000954.mp3', '/Volumes/CarlosHD/fma_full/000/000968.mp3', '/Volumes/CarlosHD/fma_full/000/000767.mp3', '/Volumes/CarlosHD/fma_full/000/000773.mp3', '/Volumes/CarlosHD/fma_full/000/000559.mp3', '/Volumes/CarlosHD/fma_full/000/000203.mp3', '/Volumes/CarlosHD/fma_full/000/000565.mp3', '/Volumes/CarlosHD/fma_full/000/000571.mp3', '/Volumes/CarlosHD/fma_full/000/000439.mp3', '/Volumes/CarlosHD/fma_full/000/000411.mp3', '/Volumes/CarlosHD/fma_full/000/000363.mp3', '/Volumes/CarlosHD/fma_full/000/000834.mp3', '/Volumes/CarlosHD/fma_full/000/000149.mp3', '/Volumes/CarlosHD/fma_full/000/000161.mp3', '/Volumes/CarlosHD/fma_full/000/000607.mp3', '/Volumes/CarlosHD/fma_full/000/000160.mp3', '/Volumes/CarlosHD/fma_full/000/000606.mp3', '/Volumes/CarlosHD/fma_full/000/000612.mp3', '/Volumes/CarlosHD/fma_full/000/000174.mp3', '/Volumes/CarlosHD/fma_full/000/000821.mp3', '/Volumes/CarlosHD/fma_full/000/000835.mp3', '/Volumes/CarlosHD/fma_full/000/000404.mp3', '/Volumes/CarlosHD/fma_full/000/000362.mp3', '/Volumes/CarlosHD/fma_full/000/000438.mp3', '/Volumes/CarlosHD/fma_full/000/000570.mp3', '/Volumes/CarlosHD/fma_full/000/000202.mp3', '/Volumes/CarlosHD/fma_full/000/000564.mp3', '/Volumes/CarlosHD/fma_full/000/000558.mp3', '/Volumes/CarlosHD/fma_full/000/000772.mp3', '/Volumes/CarlosHD/fma_full/000/000766.mp3', '/Volumes/CarlosHD/fma_full/000/000996.mp3', '/Volumes/CarlosHD/fma_full/000/000955.mp3', '/Volumes/CarlosHD/fma_full/000/000941.mp3', '/Volumes/CarlosHD/fma_full/000/000799.mp3', '/Volumes/CarlosHD/fma_full/000/000926.mp3', '/Volumes/CarlosHD/fma_full/000/000715.mp3', '/Volumes/CarlosHD/fma_full/000/000729.mp3', '/Volumes/CarlosHD/fma_full/000/000311.mp3', '/Volumes/CarlosHD/fma_full/000/000477.mp3', '/Volumes/CarlosHD/fma_full/000/000463.mp3', '/Volumes/CarlosHD/fma_full/000/000305.mp3', '/Volumes/CarlosHD/fma_full/000/000339.mp3', '/Volumes/CarlosHD/fma_full/000/000852.mp3', '/Volumes/CarlosHD/fma_full/000/000846.mp3', '/Volumes/CarlosHD/fma_full/000/000675.mp3', '/Volumes/CarlosHD/fma_full/000/000661.mp3', '/Volumes/CarlosHD/fma_full/000/000649.mp3', '/Volumes/CarlosHD/fma_full/000/000891.mp3', '/Volumes/CarlosHD/fma_full/000/000885.mp3', '/Volumes/CarlosHD/fma_full/000/000890.mp3', '/Volumes/CarlosHD/fma_full/000/000648.mp3', '/Volumes/CarlosHD/fma_full/000/000674.mp3', '/Volumes/CarlosHD/fma_full/000/000853.mp3', '/Volumes/CarlosHD/fma_full/000/000338.mp3', '/Volumes/CarlosHD/fma_full/000/000462.mp3', '/Volumes/CarlosHD/fma_full/000/000310.mp3', '/Volumes/CarlosHD/fma_full/000/000476.mp3', '/Volumes/CarlosHD/fma_full/000/000489.mp3', '/Volumes/CarlosHD/fma_full/000/000258.mp3', '/Volumes/CarlosHD/fma_full/000/000516.mp3', '/Volumes/CarlosHD/fma_full/000/000502.mp3', '/Volumes/CarlosHD/fma_full/000/000714.mp3', '/Volumes/CarlosHD/fma_full/000/000700.mp3', '/Volumes/CarlosHD/fma_full/000/000933.mp3', '/Volumes/CarlosHD/fma_full/000/000927.mp3', '/Volumes/CarlosHD/fma_full/000/000919.mp3', '/Volumes/CarlosHD/fma_full/000/000925.mp3', '/Volumes/CarlosHD/fma_full/000/000716.mp3', '/Volumes/CarlosHD/fma_full/000/000702.mp3', '/Volumes/CarlosHD/fma_full/000/000514.mp3', '/Volumes/CarlosHD/fma_full/000/000500.mp3', '/Volumes/CarlosHD/fma_full/000/000528.mp3', '/Volumes/CarlosHD/fma_full/000/000306.mp3', '/Volumes/CarlosHD/fma_full/000/000474.mp3', '/Volumes/CarlosHD/fma_full/000/000312.mp3', '/Volumes/CarlosHD/fma_full/000/000448.mp3', '/Volumes/CarlosHD/fma_full/000/000845.mp3', '/Volumes/CarlosHD/fma_full/000/000851.mp3', '/Volumes/CarlosHD/fma_full/000/000689.mp3', '/Volumes/CarlosHD/fma_full/000/000662.mp3', '/Volumes/CarlosHD/fma_full/000/000676.mp3', '/Volumes/CarlosHD/fma_full/000/000892.mp3', '/Volumes/CarlosHD/fma_full/000/000893.mp3', '/Volumes/CarlosHD/fma_full/000/000139.mp3', '/Volumes/CarlosHD/fma_full/000/000677.mp3', '/Volumes/CarlosHD/fma_full/000/000663.mp3', '/Volumes/CarlosHD/fma_full/000/000688.mp3', '/Volumes/CarlosHD/fma_full/000/000850.mp3', '/Volumes/CarlosHD/fma_full/000/000844.mp3', '/Volumes/CarlosHD/fma_full/000/000449.mp3', '/Volumes/CarlosHD/fma_full/000/000475.mp3', '/Volumes/CarlosHD/fma_full/000/000313.mp3', '/Volumes/CarlosHD/fma_full/000/000307.mp3', '/Volumes/CarlosHD/fma_full/000/000461.mp3', '/Volumes/CarlosHD/fma_full/000/000529.mp3', '/Volumes/CarlosHD/fma_full/000/000501.mp3', '/Volumes/CarlosHD/fma_full/000/000515.mp3', 
