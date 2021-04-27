@@ -36,8 +36,8 @@ import pandas as pd
 RECORD_SECONDS = 5
 # Number of results being returned for file recognition
 TOPN = 3
-ADD_NOISE = True
-SNR = -15
+ADD_NOISE = False
+SNR = 15
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
@@ -77,27 +77,27 @@ OFFSET_SECS = 'offset_seconds'
 FIELD_FILE_SHA1 = 'file_sha1'
 
 SELECT_MULTIPLE = f"""
-        SELECT HEX(`{FIELD_HASH}`), `{FIELD_SONG_ID}`, `{FIELD_OFFSET}`
-        FROM `{FINGERPRINTS_TABLENAME}`
-        WHERE `{FIELD_HASH}` IN (%s);
+        SELECT upper(encode("{FIELD_HASH}", 'hex')), "{FIELD_SONG_ID}", "{FIELD_OFFSET}"
+        FROM "{FINGERPRINTS_TABLENAME}"
+        WHERE "{FIELD_HASH}" IN (%s);
     """
-IN_MATCH = f"UNHEX(%s)"
+IN_MATCH = f"decode(%s, 'hex')"
 
 
 # DATABASE CLASS INSTANCES:
 DATABASES = {
     'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
+    'postgres': ("postgres_database", "PostgreSQLDatabase")
 }
 
 config = {
     "database": {
         "host": "127.0.0.1",
-        "user": "root",
-        "password": "root2112root",
+        "user": "postgres",
+        "password": "12345678",
         "database": "music_recognition"
     },
-    "database_type": "mysql"
+    "database_type": "postgres"
 }
 
 def generate_hashes(peaks, fan_value: int = DEFAULT_FAN_VALUE):

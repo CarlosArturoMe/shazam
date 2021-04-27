@@ -23,18 +23,19 @@ from time import time
 # DATABASE CLASS INSTANCES:
 DATABASES = {
     'mysql': ("mysql_database", "MySQLDatabase"),
-    'postgres': ("dejavu.database_handler.postgres_database", "PostgreSQLDatabase")
+    'postgres': ("postgres_database", "PostgreSQLDatabase")
 }
 
 config = {
     "database": {
         "host": "127.0.0.1",
-        "user": "root",
-        "password": "root2112root",
+        "user": "postgres",
+        "password": "12345678",
         "database": "music_recognition"
     },
-    "database_type": "mysql"
+    "database_type": "postgres"
 }
+#"password": "12345678",
 
 #FIELD_FILE_SHA1 = 'file_sha1'
 FIELD_FILE_SHA1 = 2 #result is tuple, this field index is 2
@@ -415,7 +416,7 @@ def load_fingerprinted_audio_hashes(songhashes_set):
     return songhashes_set
 
 if __name__ == '__main__':
-    db_cls = get_database(config.get("database_type", "mysql").lower())
+    db_cls = get_database(config.get("database_type", "postgres").lower())
     db = db_cls(**config.get("database", {}))
     db.setup()
     #db is mysql instance
@@ -431,3 +432,4 @@ if __name__ == '__main__':
         limit = None
     songhashes_set = load_fingerprinted_audio_hashes(set())
     fingerprint_directory("/mnt/songsES/000", ["." + "mp3"], 4,songhashes_set)
+    #fingerprint_directory("songsES", ["." + "mp3"], 4,songhashes_set)
