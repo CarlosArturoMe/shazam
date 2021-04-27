@@ -414,7 +414,7 @@ def load_fingerprinted_audio_hashes(songhashes_set):
     return songhashes_set
 
 if __name__ == '__main__':
-    db_cls = get_database(config.get("database_type", "mysql").lower())
+    db_cls = get_database(config.get("database_type", "postgres").lower())
     db = db_cls(**config.get("database", {}))
     #db is mysql instance
     with db.cursor() as cur:
