@@ -56,8 +56,8 @@ class MySQLDatabase():
     ) ENGINE=MEMORY;
     """
 
-    SET_TMP_TABLE_SIZE = "SET tmp_table_size = 1024 * 1024 * 1024 * 35;"
-    SET_MAX_HEAP_SIZE = "SET max_heap_table_size = 1024 * 1024 * 1024 * 35;"
+    SET_TMP_TABLE_SIZE = "SET tmp_table_size = 1024 * 1024 * 1024 * 250;" #In GB
+    SET_MAX_HEAP_SIZE = "SET max_heap_table_size = 1024 * 1024 * 1024 * 250;"
 
     # INSERTS (IGNORES DUPLICATES)
     INSERT_FINGERPRINT = f"""

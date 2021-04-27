@@ -30,7 +30,7 @@ config = {
     "database": {
         "host": "127.0.0.1",
         "user": "root",
-        "password": "12345678",
+        "password": "root2112root",
         "database": "music_recognition"
     },
     "database_type": "mysql"
@@ -417,11 +417,12 @@ def load_fingerprinted_audio_hashes(songhashes_set):
 if __name__ == '__main__':
     db_cls = get_database(config.get("database_type", "mysql").lower())
     db = db_cls(**config.get("database", {}))
+    db.setup()
     #db is mysql instance
-    with db.cursor() as cur:
-        cur.execute(db.CREATE_SONGS_TABLE)
-        cur.execute(db.CREATE_FINGERPRINTS_TABLE)
-        cur.execute(db.DELETE_UNFINGERPRINTED)
+    #with db.cursor() as cur:
+    #    cur.execute(db.CREATE_SONGS_TABLE)
+    #    cur.execute(db.CREATE_FINGERPRINTS_TABLE)
+    #    cur.execute(db.DELETE_UNFINGERPRINTED)
 
     # if we should limit seconds fingerprinted,
     # None|-1 means use entire track
@@ -429,4 +430,4 @@ if __name__ == '__main__':
     if limit == -1:  # for JSON compatibility
         limit = None
     songhashes_set = load_fingerprinted_audio_hashes(set())
-    fingerprint_directory("/Volumes/CarlosHD/fma_full/000", ["." + "mp3"], 4,songhashes_set)
+    fingerprint_directory("/mnt/songsES/000", ["." + "mp3"], 4,songhashes_set)
