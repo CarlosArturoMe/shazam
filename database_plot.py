@@ -151,3 +151,5 @@ with open('song_hashes.csv', 'w',) as csvfile:
     writer.writerow(['Nombre', 'Cantidad de hashes'])
     for song in response:
         writer.writerow([song[0]+".mp3", song[1]])
+
+
