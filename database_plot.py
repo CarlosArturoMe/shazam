@@ -70,7 +70,7 @@ config = {
     "database": {
         "host": "127.0.0.1",
         "user": "root",
-        "password": "12345678",
+        "password": "1234",
         "database": "music_recognition"
     },
     "database_type": "mysql"
@@ -103,7 +103,7 @@ SELECT_HASHES_ASC_SONGS = f"""
         ,   `{FIELD_TOTAL_HASHES}`
         FROM `{SONGS_TABLENAME}`
         ORDER BY `{FIELD_TOTAL_HASHES}` ASC
-        LIMIT 10;
+        LIMIT 20;
     """
 
 SELECT_HASHES_DESC_SONGS = f"""
@@ -112,7 +112,7 @@ SELECT_HASHES_DESC_SONGS = f"""
         ,   `{FIELD_TOTAL_HASHES}`
         FROM `{SONGS_TABLENAME}`
         ORDER BY `{FIELD_TOTAL_HASHES}` DESC
-        LIMIT 10;
+        LIMIT 20;
     """
 
 SELECT_SONGS_HASHES = f"""
@@ -124,26 +124,27 @@ SELECT_SONGS_HASHES = f"""
     """
 
 with db.cursor(dictionary=True) as cur:
-    cur.execute(SELECT_SONGS_HASHES)
+    cur.execute(SELECT_HASHES_ASC_SONGS)
     response = list(cur)
 #print(response)
 
-#songs_arr = []
-#total_hashes_arr = []
-#for song in response:
-    #songs_arr.append(song[0]+".mp3")
-    #total_hashes_arr.append(song[1])
+songs_arr = []
+total_hashes_arr = []
+for song in response:
+    songs_arr.append(song[0]+".mp3")
+    total_hashes_arr.append(song[1])
 
-"""    
+#"""    
 fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.bar(songs_arr, total_hashes_arr) #align='center')
-#ax.xaxis.set_tick_params(labelsize='small')
+ax.xaxis.set_tick_params(labelsize='small')
 #ax.text(fontsize=6)
 plt.setp(ax.get_xticklabels(), rotation='vertical', fontsize=6)
 ax.set_xlabel('Canciones')
-ax.set_ylabel('Total de hashes')
+ax.set_ylabel('Total de huellas')
 plt.show()
+#"""
 """
 #save to csv
 with open('song_hashes.csv', 'w',) as csvfile:
@@ -151,3 +152,5 @@ with open('song_hashes.csv', 'w',) as csvfile:
     writer.writerow(['Nombre', 'Cantidad de hashes'])
     for song in response:
         writer.writerow([song[0]+".mp3", song[1]])
+"""
+

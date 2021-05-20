@@ -35,7 +35,7 @@ import pandas as pd
 
 RECORD_SECONDS = 15
 # Number of results being returned for file recognition
-TOPN = 2
+TOPN = 5
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
@@ -92,7 +92,7 @@ config = {
     "database": {
         "host": "127.0.0.1",
         "user": "root",
-        "password": "12345678",
+        "password": "1234",
         "database": "music_recognition"
     },
     "database_type": "mysql"
@@ -275,12 +275,12 @@ def return_matches(hashes, batch_size: int = 1000):
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
             query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
-            print("query: ",query)
+            #print("query: ",query)
             cur.execute(query, values[index: index + batch_size])
-            print("cur: ",cur)
-            matches_count= 0
+            #print("cur: ",cur)
+            #matches_count= 0
             for hsh, sid, offset in cur:
-                matches_count +=1
+                #matches_count +=1
                 if sid not in dedup_hashes.keys():
                     dedup_hashes[sid] = 1
                 else:
@@ -292,7 +292,7 @@ def return_matches(hashes, batch_size: int = 1000):
                 #print("hsh: ",hsh)
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
-            print("matches_count: ",matches_count)
+            #print("matches_count: ",matches_count)
             #"""
             # apriori time alignement
             #for res in results:
@@ -524,9 +524,9 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
 
 
 #MAIN
-#songs_to_recognize = find_files("songs",["." + "mp3"])
-#songs_to_recognize = songs_to_recognize[0:100]
-songs_to_recognize = ["songs/000/000002.mp3"]
+songs_to_recognize = find_files("songsES/001/",["." + "mp3"])
+#songs_to_recognize = ["songsES/001/"]
+songs_to_recognize = songs_to_recognize[0:500]
 #song = songs_to_recognize[0]
 recognized_song_names = []
 times = []
@@ -625,7 +625,7 @@ for song_i, song_name in enumerate(songs_to_recognize):
     total_time = fingerprint_times + query_time + align_time
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
     "align_time":align_time,"total_time":total_time})
-    #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
-    if len_songs-1 == song_i:
+    if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+    #if len_songs-1 == song_i:
         generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,final_results_arr)
 audio.terminate()

@@ -33,7 +33,7 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 15
+RECORD_SECONDS = 5
 # Number of results being returned for file recognition
 TOPN = 5
 FORMAT = pyaudio.paInt16
@@ -451,13 +451,13 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
         if song_to_recognize == recognized_song_names[i]:
             dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),
             "song_start_time":times[i]["song_start_time"],"correct":1,"fingerprint_times":times[i]["fingerprint_times"],
-            "query_time":times[i]["query_time"],"align_time":times[i]["align_time"],"total_time":times[i]["total_time"]})
-            #,"final_results":final_results_arr[i]}) #final_results_arr[i] must be string to save here
+            "query_time":times[i]["query_time"],"align_time":times[i]["align_time"],"total_time":times[i]["total_time"]#})
+            ,"final_results":str(final_results_arr[i])}) #final_results_arr[i] must be string to save here
         else:
             dict_data.append({"file_name_played":str(songs_to_recognize[i]),"file_name_result":str(recognized_song_names[i]),"song_start_time":times[i]["song_start_time"],
             "correct":0,"fingerprint_times":times[i]["fingerprint_times"],"query_time":times[i]["query_time"],
-            "align_time":times[i]["align_time"],"total_time":times[i]["total_time"]})
-            #,"final_results":final_results_arr[i]})
+            "align_time":times[i]["align_time"],"total_time":times[i]["total_time"]#})
+            ,"final_results":str(final_results_arr[i])})
         """
         #write csv with top results detail of file recognition
         if len(final_results_arr[i]) > 0:
@@ -469,8 +469,8 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
         """
 
     csv_columns = ['file_name_played','file_name_result','song_start_time','correct','fingerprint_times','query_time','align_time',
-    'total_time']
-    #,'final_results']
+    'total_time','final_results']#]
+    #
     if add_noise:
         csv_name = "shazam_results_" + datetime.datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + "_" + str(len(songs_to_recognize)) + "records_" + str(RECORD_SECONDS) + "seconds_SNR" + SNR + "_atSong" + str(iteration+1) + ".csv"
     else:
@@ -510,9 +510,10 @@ def generate_csv_results(songs_to_recognize,recognized_song_names,iteration,fina
 
 
 #MAIN
-songs_to_recognize = find_files("songsES",["." + "mp3"])
+songs_to_recognize = find_files("songsES/001",["." + "mp3"])
 #songs_to_recognize = ["songsES/000/000002.mp3"]
-songs_to_recognize = songs_to_recognize[0:100]
+songs_to_recognize = songs_to_recognize[0:500]
+print("songs_to_recognize: ",songs_to_recognize)
 #song = songs_to_recognize[0]
 recognized_song_names = []
 times = []
@@ -607,7 +608,7 @@ for song_i, song_name in enumerate(songs_to_recognize):
     total_time = fingerprint_times + query_time + align_time
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,
     "align_time":align_time,"total_time":total_time})
-    #if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
-    if len_songs-1 == song_i:
+    if song_i == fourthpart or song_i == medium or three_fourths == song_i or len_songs-1 == song_i:
+    #if len_songs-1 == song_i:
         generate_csv_results(songs_to_recognize[:song_i+1],recognized_song_names,song_i,final_results_arr)
 audio.terminate()

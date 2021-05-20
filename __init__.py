@@ -430,4 +430,4 @@ if __name__ == '__main__':
     if limit == -1:  # for JSON compatibility
         limit = None
     songhashes_set = load_fingerprinted_audio_hashes(set())
-    fingerprint_directory("songsES", ["." + "mp3"], 4,songhashes_set)
+    fingerprint_directory("songsES/017", ["." + "mp3"], 4,songhashes_set)
