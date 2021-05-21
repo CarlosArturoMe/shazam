@@ -18,7 +18,7 @@ from operator import itemgetter
 from itertools import groupby
 import importlib
 
-RECORD_SECONDS = 1
+RECORD_SECONDS = 5
 FORMAT = pyaudio.paInt16
 CHANNELS = 2
 RATE = 44100 #Hz, samples / second
@@ -389,127 +389,10 @@ t = time()
 final_results = align_matches(matches, dedup_hashes, len(hashes))
 align_time = time() - t
 
-print("final_results: ",final_results)
-print("fingerprint_times: ",np.sum(fingerprint_times))
-print("query_time: ",query_time)
-print("align_time: ",align_time)
+#print("final_results: ",final_results)
+#print("fingerprint_times: ",np.sum(fingerprint_times))
+#print("query_time: ",query_time)
+#print("align_time: ",align_time)
 #return final_results, np.sum(fingerprint_times), query_time, align_time
-"""
-waveFile = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-waveFile.setnchannels(CHANNELS)
-waveFile.setsampwidth(audio.get_sample_size(FORMAT))
-waveFile.setframerate(RATE)
-waveFile.writeframes(b''.join(frames))
-waveFile.close()
-
-y, sr = librosa.load(WAVE_OUTPUT_FILENAME, sr=None, mono=True)
-stft = np.abs(librosa.stft(y, n_fft=2048, hop_length=512))
-#D = librosa.amplitude_to_db(stft, ref=np.max)
-#librosa.display.specshow(D, sr=sr, hop_length=512, x_axis='time', y_axis='linear')
-#plt.colorbar(format='%+2.0f dB')
-#plt.show()
-mel = librosa.feature.melspectrogram(sr=sr, S=stft**2)
-f = librosa.feature.mfcc(S=librosa.power_to_db(mel), n_mfcc=20)
-mean_val = np.mean(f, axis=1)
-max_val = np.max(f, axis=1)
-min_val = np.min(f, axis=1)
-print("mean: ",mean_val)
-print("max: ",max_val)
-print("min: ",min_val)
-
-file_name = "119025"
-dict_data = []
-mean_n1 = mean_val[0]
-mean_n2 = mean_val[1]
-mean_n3 = mean_val[2]
-mean_n4 = mean_val[3]
-mean_n5 = mean_val[4]
-mean_n6 = mean_val[5]
-mean_n7 = mean_val[6]
-mean_n8 = mean_val[7]
-mean_n9 = mean_val[8]
-mean_n10 = mean_val[9]
-mean_n11 = mean_val[10]
-mean_n12 = mean_val[11]
-mean_n13 = mean_val[12]
-mean_n14 = mean_val[13]
-mean_n15 = mean_val[14]
-mean_n16 = mean_val[15]
-mean_n17 = mean_val[16]
-mean_n18 = mean_val[17]
-mean_n19 = mean_val[18]
-mean_n20 = mean_val[19]
-max_n1 = max_val[0]
-max_n2 = max_val[1]
-max_n3 = max_val[2]
-max_n4 = max_val[3]
-max_n5 = max_val[4]
-max_n6 = max_val[5]
-max_n7 = max_val[6]
-max_n8 = max_val[7]
-max_n9 = max_val[8]
-max_n10 = max_val[9]
-max_n11 = max_val[10]
-max_n12 = max_val[11]
-max_n13 = max_val[12]
-max_n14 = max_val[13]
-max_n15 = max_val[14]
-max_n16 = max_val[15]
-max_n17 = max_val[16]
-max_n18 = max_val[17]
-max_n19 = max_val[18]
-max_n20 = max_val[19]
-min_n1 = min_val[0]
-min_n2 = min_val[1]
-min_n3 = min_val[2]
-min_n4 = min_val[3]
-min_n5 = min_val[4]
-min_n6 = min_val[5]
-min_n7 = min_val[6]
-min_n8 = min_val[7]
-min_n9 = min_val[8]
-min_n10 = min_val[9]
-min_n11 = min_val[10]
-min_n12 = min_val[11]
-min_n13 = min_val[12]
-min_n14 = min_val[13]
-min_n15 = min_val[14]
-min_n16 = min_val[15]
-min_n17 = min_val[16]
-min_n18 = min_val[17]
-min_n19 = min_val[18]
-min_n20 = min_val[19]
-dict_data.append({"file_name":file_name,"max_n1":max_n1,"max_n2":max_n2,
-"max_n3":max_n3,"max_n4":max_n4,"max_n5":max_n5,"max_n6":max_n6,
-"max_n7":max_n7,"max_n8":max_n8,"max_n9":max_n9,"max_n10":max_n10,
-"max_n11":max_n11,"max_n12":max_n12,"max_n13":max_n13,"max_n14":max_n14,
-"max_n15":max_n15,"max_n16":max_n16,"max_n17":max_n17,"max_n18":max_n18,
-"max_n19":max_n19,"max_n20":max_n20,"mean_n1":mean_n1,"mean_n2":mean_n2,
-"mean_n3":mean_n3,"mean_n4":mean_n4,"mean_n5":mean_n5,"mean_n6":mean_n6,
-"mean_n7":mean_n7,"mean_n8":mean_n8,"mean_n9":mean_n9,"mean_n10":mean_n10,
-"mean_n11":mean_n11,"mean_n12":mean_n12,"mean_n13":mean_n13,"mean_n14":mean_n14,
-"mean_n15":mean_n15,"mean_n16":mean_n16,"mean_n17":mean_n17,"mean_n18":mean_n18,
-"mean_n19":mean_n19,"mean_n20":mean_n20,"min_n1":min_n1,"min_n2":min_n2,
-"min_n3":min_n3,"min_n4":min_n4,"min_n5":min_n5,"min_n6":min_n6,
-"min_n7":min_n7,"min_n8":min_n8,"min_n9":min_n9,"min_n10":min_n10,
-"min_n11":min_n11,"min_n12":min_n12,"min_n13":min_n13,"min_n14":min_n14,
-"min_n15":min_n15,"min_n16":min_n16,"min_n17":min_n17,"min_n18":min_n18,
-"min_n19":min_n19,"min_n20":min_n20
-})
-csv_columns = ['file_name','max_n1','max_n2','max_n3','max_n4','max_n5','max_n6','max_n7','max_n8','max_n9','max_n10','max_n11'
-,'max_n12','max_n13','max_n14','max_n15','max_n16','max_n17','max_n18',
-'max_n19','max_n20','mean_n1','mean_n2','mean_n3','mean_n4','mean_n5','mean_n6'
-,'mean_n7','mean_n8','mean_n9','mean_n10','mean_n11','mean_n12','mean_n13','mean_n14'
-,'mean_n15','mean_n16','mean_n17','mean_n18','mean_n19','mean_n20',
-'min_n1','min_n2','min_n3','min_n4','min_n5','min_n6','min_n7','min_n8','min_n9','min_n10','min_n11'
-,'min_n12','min_n13','min_n14','min_n15','min_n16','min_n17','min_n18','min_n19','min_n20']
-csv_file = file_name+".csv"
-try:
-    with open(csv_file, 'w') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
-        writer.writeheader()
-        for data in dict_data:
-            writer.writerow(data)
-except IOError:
-    print("I/O error")
-"""
+metadata = db.get_metadata(int(final_results[0]['song_name']))
+print("metadata: ",metadata)

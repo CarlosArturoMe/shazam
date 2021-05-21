@@ -111,6 +111,13 @@ class MySQLDatabase():
         FROM `{SONGS_TABLENAME}`
         WHERE `{FIELD_FINGERPRINTED}` = 1;
     """
+    
+    SELECT_METADATA = f"""
+        SELECT album_title, album_url, artist_name, artist_url,
+        artist_website, tags, track_genres, track_title, track_url
+        FROM METADATA
+        WHERE track_id = %s;
+    """
 
     # DROPS
     DROP_FINGERPRINTS = f"DROP TABLE IF EXISTS `{FINGERPRINTS_TABLENAME}`;"
@@ -225,6 +232,27 @@ class MySQLDatabase():
             #return cur.fetchone()
             return dct
 
+    def get_metadata(self, song_id:int):
+        """
+        Brings the song info from the database.
+
+        :param song_id: song identifier.
+        :return: all the metadata of a song by its identifier. Result must be a Dictionary.
+        """
+        print(song_id)
+        with self.cursor(dictionary=True) as cur:
+            cur.execute(self.SELECT_METADATA, (song_id,))
+            response = cur.fetchone()
+            #print("response: ",response)
+            #print("dict fetchone: ",dict(response))
+            dct = {"track_title":response[7],
+            "album_title":response[0],#"album_url":response[1],
+            "artist_name":response[2],#"artist_url":response[3],
+            "artist_website":response[4],# "tags":response[5], 
+            "track_genres":response[6],
+            "track_url":response[8]}
+            #return cur.fetchone()
+            return dct
 
 def cursor_factory(**factory_options):
     def cursor(**options):

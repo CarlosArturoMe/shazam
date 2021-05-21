@@ -432,7 +432,8 @@ times = []
 add_noise = False
 SNR = 0
 for song_name in songs_to_recognize:
-    signal, sr = librosa.load(song_name)
+    print(song_name)
+    signal, sr = librosa.load(song_name,sr=44100)
     #time = np.arange(0,len(signal))/sr
     #fig, ax = plt.subplots()
     #D = librosa.stft(signal)
@@ -449,6 +450,30 @@ for song_name in songs_to_recognize:
     plt.gca().invert_yaxis()
     plt.show()
     """
+    """
+    fig, ax = plt.subplots()
+    S_db = librosa.amplitude_to_db(np.abs(D), ref=np.max)
+    #plt.figure()
+    #librosa.display.specshow(S_db)
+    img = librosa.display.specshow(S_db, x_axis='time', y_axis='linear', ax=ax)
+    fig.colorbar(img, ax=ax, format="%+2.f dB")
+    #plt.colorbar()
+    #plt.show()
+    plt.plot()
+    plt.close()
+    """
+    fig, ax = plt.subplots()
+    print(sr)
+    Pxx, freqs, bins, im = ax.specgram(signal, NFFT=4096, Fs=sr, noverlap=2048)
+    ax.set(xlabel='Tiempo',ylabel='Frecuencia')
+    ax.set_title("Espectrograma")
+    # The `specgram` method returns 4 objects. They are:
+    # - Pxx: the periodogram
+    # - freqs: the frequency vector
+    # - bins: the centers of the time bins
+    # - im: the .image.AxesImage instance representing the data in the plot
+    plt.show()
+"""
     if add_noise:
         #adding noise
         signal, sr = librosa.load(song_name)
@@ -530,3 +555,4 @@ for song_name in songs_to_recognize:
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,"align_time":align_time,"total_time":total_time})
     #sleep(10)
 audio.terminate()
+"""

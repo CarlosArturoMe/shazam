@@ -528,6 +528,7 @@ songs_to_recognize = find_files("songsES/001/",["." + "mp3"])
 #songs_to_recognize = ["songsES/001/"]
 songs_to_recognize = songs_to_recognize[0:500]
 #song = songs_to_recognize[0]
+print("songs_to_recognize: ",songs_to_recognize)
 recognized_song_names = []
 times = []
 final_results_arr = []
@@ -541,9 +542,6 @@ fourthpart = math.floor(len_songs/4)
 medium = fourthpart * 2
 three_fourths = fourthpart * 3
 print("len_songs: ",len_songs)
-#print("fourthpart: ",fourthpart)
-#print("medium: ",medium)
-#print("three_fourths: ",three_fourths)
 for song_i, song_name in enumerate(songs_to_recognize):
     print("Now loading: ",song_name)
     if add_noise:
