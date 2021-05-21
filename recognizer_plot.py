@@ -266,6 +266,7 @@ def return_matches(hashes, batch_size: int = 1000):
     dedup_hashes = {}
 
     results = []
+    coincidences = 0
     with db.cursor() as cur:
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
@@ -274,6 +275,7 @@ def return_matches(hashes, batch_size: int = 1000):
             cur.execute(query, values[index: index + batch_size])
 
             for hsh, sid, offset in cur:
+                coincidences += 1
                 if sid not in dedup_hashes.keys():
                     dedup_hashes[sid] = 1
                 else:
@@ -283,7 +285,7 @@ def return_matches(hashes, batch_size: int = 1000):
                 #print("hsh: ",hsh)
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
-
+        print("total coincidences: ",coincidences)
         return results, dedup_hashes
 
 def find_matches(hashes):
@@ -317,13 +319,13 @@ def align_matches(matches, dedup_hashes, queried_hashes,topn: int = TOPN):
         #DEBUGEAR ESTA FUNCION
         # count offset occurrences per song and keep only the maximum ones.
         sorted_matches = sorted(matches, key=lambda m: (m[0], m[1]))
-        print("sorted_matches: ",sorted_matches)
+        #print("sorted_matches: ",sorted_matches)
         counts = [(*key, len(list(group))) for key, group in groupby(sorted_matches, key=lambda m: (m[0], m[1]))]
         songs_matches = sorted(
             [max(list(group), key=lambda g: g[2]) for key, group in groupby(counts, key=lambda count: count[0])],
             key=lambda count: count[2], reverse=True
         )
-        print("songs_matches: ",songs_matches)
+        #print("songs_matches: ",songs_matches)
         songs_result = []
         for song_id, offset, _ in songs_matches[0:topn]:  # consider topn elements in the result
             song = db.get_song_by_id(song_id)
@@ -427,13 +429,14 @@ def get_noise_from_sound(signal,noise,SNR):
 #MAIN
 #songs_to_recognize = find_files("songs",["." + "mp3"])
 songs_to_recognize = find_files("song",["." + "mp3"])
+print(songs_to_recognize)
 recognized_song_names = []
 times = []
 add_noise = False
 SNR = 0
 for song_name in songs_to_recognize:
-    print(song_name)
-    signal, sr = librosa.load(song_name,sr=44100)
+    #print(song_name)
+    signal, sr = librosa.load(song_name,sr=RATE)
     #time = np.arange(0,len(signal))/sr
     #fig, ax = plt.subplots()
     #D = librosa.stft(signal)
@@ -463,7 +466,6 @@ for song_name in songs_to_recognize:
     plt.close()
     """
     fig, ax = plt.subplots()
-    print(sr)
     Pxx, freqs, bins, im = ax.specgram(signal, NFFT=4096, Fs=sr, noverlap=2048)
     ax.set(xlabel='Tiempo',ylabel='Frecuencia')
     ax.set_title("Espectrograma")
@@ -473,7 +475,6 @@ for song_name in songs_to_recognize:
     # - bins: the centers of the time bins
     # - im: the .image.AxesImage instance representing the data in the plot
     plt.show()
-"""
     if add_noise:
         #adding noise
         signal, sr = librosa.load(song_name)
@@ -534,7 +535,7 @@ for song_name in songs_to_recognize:
         fingerprint_times.append(fingerprint_time)
         hashes |= set(fingerprints) #union
     print("fingerprint_times: ",fingerprint_times)
-    print("hashes: ",hashes)
+    print("hashes len: ",len(hashes))
     db_cls = get_database(config.get("database_type", "mysql").lower())
     db = db_cls(**config.get("database", {}))
     matches, dedup_hashes, query_time = find_matches(hashes)
@@ -555,4 +556,3 @@ for song_name in songs_to_recognize:
     times.append({"song_start_time":song_start_time,"fingerprint_times":fingerprint_times,"query_time":query_time,"align_time":align_time,"total_time":total_time})
     #sleep(10)
 audio.terminate()
-"""

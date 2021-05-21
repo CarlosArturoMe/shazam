@@ -33,7 +33,7 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 15
+RECORD_SECONDS = 5
 # Number of results being returned for file recognition
 TOPN = 3
 ADD_NOISE = False

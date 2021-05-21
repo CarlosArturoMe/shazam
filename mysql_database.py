@@ -239,7 +239,7 @@ class MySQLDatabase():
         :param song_id: song identifier.
         :return: all the metadata of a song by its identifier. Result must be a Dictionary.
         """
-        print(song_id)
+        #print(song_id)
         with self.cursor(dictionary=True) as cur:
             cur.execute(self.SELECT_METADATA, (song_id,))
             response = cur.fetchone()
