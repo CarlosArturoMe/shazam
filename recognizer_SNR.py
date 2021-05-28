@@ -33,7 +33,7 @@ import re
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import pandas as pd
 
-RECORD_SECONDS = 5
+RECORD_SECONDS = 15
 # Number of results being returned for file recognition
 TOPN = 3
 FORMAT = pyaudio.paInt16
@@ -275,9 +275,9 @@ def return_matches(hashes, batch_size: int = 1000):
         for index in range(0, len(values), batch_size):
             # Create our IN part of the query
             start_t = time()
-            print("Start time before query of index {}: {}".format(index,start_t)
+            print("Start time before query of index {}: {}".format(index,start_t))
             query = SELECT_MULTIPLE % ', '.join([IN_MATCH] * len(values[index: index + batch_size]))
-            print("Query: ",query)
+            #print("Query: ",query)
             cur.execute(query, values[index: index + batch_size])
             #matches_count= 0
             for hsh, sid, offset in cur:
@@ -292,7 +292,7 @@ def return_matches(hashes, batch_size: int = 1000):
                 for song_sampled_offset in mapper[hsh]:
                     results.append((sid, offset - song_sampled_offset))
             finish_t = time() - start_t
-            print("Finish time of query of index {}: {}".format(index,finish_t)
+            print("Finish time of query of index {}: {}".format(index,finish_t))
             #print("matches_count: ",matches_count)
         #print("Dedup hashes: ",dedup_hashes)
         return results, dedup_hashes
