@@ -389,7 +389,7 @@ t = time()
 final_results = align_matches(matches, dedup_hashes, len(hashes))
 align_time = time() - t
 
-#print("final_results: ",final_results)
+print("final_results: ",final_results)
 #print("fingerprint_times: ",np.sum(fingerprint_times))
 #print("query_time: ",query_time)
 #print("align_time: ",align_time)
