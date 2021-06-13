@@ -7,8 +7,6 @@ dependencies:
   - matplotlib
   - pandas
   - vtk
-  - snap
-  - snap-stanford
   - scipy
   - nltk
   - pomegranate
