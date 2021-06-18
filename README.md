@@ -22,6 +22,8 @@ Install the database chosen and create the database music\_recognition to store 
 Scheme is automatically created executing
 \_\_init\_\_.py.
 
+If you have any question send me a mail: carlosarturo.medina5@gmail.com
+
 # Sistema identificador de audio (SIA)
 
 Mediante el archivo \_\_init\_\_.py, SIA permite cargar de 
@@ -45,3 +47,5 @@ Requerimientos: Python 3.7 y conda para instalar las librerias contenidas en el 
 Instalar la base de datos elegida y crear la BD music\_recognition para albergar las huellas.
 El esquema se crea automáticamente al correr el
 archivo \_\_init\_\_.py.
+
+Puedes enviarme correo en caso de dudas: carlosarturo.medina5@gmail.com
